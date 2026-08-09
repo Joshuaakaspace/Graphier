@@ -1,0 +1,57 @@
+:root {
+  --bg: #fbfaf8;
+  --bg-raised: #ffffff;
+  --bg-inset: #f1efeb;
+  --ink: #232725;
+  --ink-soft: #6b716e;
+  --line: #e3e0da;
+  --accent: #1f6f61;
+  --accent-soft: #e3efec;
+
+  --c-person: #b3541e;
+  --c-org: #6e40c9;
+  --c-gpe: #2e7d32;
+  --c-date: #1565c0;
+  --c-wikilink: #1f6f61;
+  --c-concept: #8d6e63;
+
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #191c1b;
+    --bg-raised: #212523;
+    --bg-inset: #141716;
+    --ink: #e4e6e4;
+    --ink-soft: #969e9a;
+    --line: #303634;
+    --accent: #5fb3a3;
+    --accent-soft: #22332f;
+
+    --c-person: #e08a51;
+    --c-org: #a37fe0;
+    --c-gpe: #6cbf71;
+    --c-date: #64a3e8;
+    --c-wikilink: #5fb3a3;
+    --c-concept: #b59e97;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
