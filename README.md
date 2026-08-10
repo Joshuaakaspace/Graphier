@@ -8,11 +8,29 @@ underneath — people, organizations, places, and dates light up as you type,
 relations are extracted with confidence scores, and `[[wiki-links]]` become
 explicit edges. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
 
-**Status: Phase 1 walking skeleton** — vault CRUD, live entity extraction with
-in-editor underlines, entity/relations panel, and vault-wide graph aggregation.
-Graph canvas, provenance panel, and reasoning are later phases.
+**Status: Phase 1 + vault intelligence** — vault CRUD, live entity extraction
+with in-editor underlines, entity/relations panel, vault-wide graph
+aggregation, and a deterministic enrichment layer:
 
-![Graphier screenshot](docs/screenshot.png)
+- **Inferred connections** — Semantica's Datalog reasoner forward-chains rules
+  over extracted facts: multi-hop chains ("Widget Inc ↔ Ada Lovelace, because
+  Widget Inc was acquired by Acme Corp, which was founded by Ada Lovelace")
+  and hidden bridges ("X and Y never appear together, but both appear with
+  Z"). Every inference carries its derivation.
+- **Conflict detection** — the same subject + predicate asserted differently
+  in different notes gets flagged with both sources ("Acme Corp founded by:
+  Grace Hopper (History) vs Ada Lovelace (Research Log)").
+- **Link suggestions** — entities in the current note that other notes also
+  mention.
+- **Central entities** — PageRank over the vault graph via Semantica's
+  CentralityCalculator: what your vault actually revolves around.
+
+Graph canvas and full provenance UI are later phases.
+
+<p>
+  <img src="docs/screenshot.png" alt="Graphier editor" width="70%" />
+  <img src="docs/panel-intelligence.png" alt="Vault intelligence panel" width="19%" />
+</p>
 
 ## Run it
 

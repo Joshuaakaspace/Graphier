@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
-import type { Extraction, GraphSummary, NoteMeta } from './api'
+import type { Enrichment, Extraction, GraphSummary, NoteMeta, Suggestion } from './api'
 import { Editor } from './Editor'
 import './App.css'
 
@@ -19,6 +19,8 @@ export default function App() {
   const [content, setContent] = useState<string>('')
   const [extraction, setExtraction] = useState<Extraction | null>(null)
   const [summary, setSummary] = useState<GraphSummary | null>(null)
+  const [enrichment, setEnrichment] = useState<Enrichment | null>(null)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [status, setStatus] = useState<'saved' | 'saving' | 'extracting'>('saved')
   const saveTimer = useRef<number | undefined>(undefined)
 
@@ -27,18 +29,25 @@ export default function App() {
     () => api.graph().then((g) => setSummary(g.summary)).catch(() => {}),
     [],
   )
+  const refreshEnrichment = useCallback(
+    () => api.enrichment().then(setEnrichment).catch(() => {}),
+    [],
+  )
 
   useEffect(() => {
     refreshNotes()
     refreshSummary()
-  }, [refreshNotes, refreshSummary])
+    refreshEnrichment()
+  }, [refreshNotes, refreshSummary, refreshEnrichment])
 
   const openNote = useCallback((id: string) => {
     api.readNote(id).then((note) => {
       setActiveId(id)
       setContent(note.content)
       setExtraction(null)
+      setSuggestions([])
       api.entities(id).then(setExtraction).catch(() => {})
+      api.suggestions(id).then((s) => setSuggestions(s.suggestions)).catch(() => {})
     })
   }, [])
 
@@ -59,11 +68,13 @@ export default function App() {
             setStatus('saved')
             refreshNotes()
             refreshSummary()
+            refreshEnrichment()
+            api.suggestions(activeId).then((s) => setSuggestions(s.suggestions)).catch(() => {})
           })
           .catch(() => setStatus('saved'))
       }, 600)
     },
-    [activeId, refreshNotes, refreshSummary],
+    [activeId, refreshNotes, refreshSummary, refreshEnrichment],
   )
 
   const createNote = useCallback(() => {
@@ -193,6 +204,107 @@ export default function App() {
               ))}
             </ul>
           </section>
+        )}
+
+        {activeId && suggestions.length > 0 && (
+          <section className="entity-group">
+            <h3>
+              <span className="dot dot-SUGGEST" />
+              Also mentioned in
+              <span className="count">{suggestions.length}</span>
+            </h3>
+            <ul className="suggestions">
+              {suggestions.map((s) => (
+                <li key={s.text}>
+                  <span className="rel-entity">{s.text}</span>
+                  <span className="suggest-notes">
+                    {' — '}
+                    {s.also_in.map((n) => n.title).join(', ')}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {enrichment && (
+          <>
+            <h2 className="vault-head">Vault intelligence</h2>
+
+            {enrichment.insights.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-INSIGHT" />
+                  Central entities
+                </h3>
+                <ul className="insights">
+                  {enrichment.insights.map((ins) => {
+                    const max = enrichment.insights[0].score || 1
+                    return (
+                      <li key={ins.text}>
+                        <span className="rel-entity">{ins.text}</span>
+                        <span
+                          className="insight-bar"
+                          style={{ width: `${Math.max(8, (ins.score / max) * 60)}px` }}
+                        />
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {enrichment.inferred.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-INFERRED" />
+                  Inferred connections
+                  <span className="count">{enrichment.inferred.length}</span>
+                </h3>
+                <ul className="inferred">
+                  {enrichment.inferred.slice(0, 6).map((inf, i) => (
+                    <li key={i}>
+                      <div>
+                        <span className="rel-entity">{inf.source}</span>
+                        <span className="rel-pred"> ↔ </span>
+                        <span className="rel-entity">{inf.target}</span>
+                      </div>
+                      <div className="because">{inf.because}</div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {enrichment.conflicts.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-CONFLICT" />
+                  Conflicts
+                  <span className="count">{enrichment.conflicts.length}</span>
+                </h3>
+                <ul className="conflicts">
+                  {enrichment.conflicts.map((c, i) => (
+                    <li key={i}>
+                      <div>
+                        <span className="rel-entity">{c.subject}</span>
+                        <span className="rel-pred"> {c.predicate} </span>
+                      </div>
+                      {c.claims.map((claim) => (
+                        <div className="claim" key={claim.object}>
+                          {claim.object}
+                          <span className="suggest-notes">
+                            {' '}
+                            ({claim.notes.map((n) => n.title).join(', ')})
+                          </span>
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
         )}
       </aside>
     </div>

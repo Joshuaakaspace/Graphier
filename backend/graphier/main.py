@@ -14,6 +14,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .enrichment import Enricher, enrich
 from .extraction import ExtractionService
 from .graph import build_graph
 from .vault import NoteNotFound, Vault, VaultError
@@ -84,6 +85,20 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
     @app.get("/api/graph")
     def graph():
         return build_graph(vault, extractor)
+
+    @app.get("/api/enrichment")
+    def enrichment():
+        return enrich(build_graph(vault, extractor))
+
+    @app.get("/api/notes/{note_id}/suggestions")
+    def note_suggestions(note_id: str):
+        try:
+            vault.read(note_id)
+        except NoteNotFound:
+            raise HTTPException(404, f"note not found: {note_id}")
+        except VaultError as exc:
+            raise HTTPException(400, str(exc))
+        return {"suggestions": Enricher(build_graph(vault, extractor)).suggestions_for(note_id)}
 
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
     if dist.is_dir():

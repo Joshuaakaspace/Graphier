@@ -41,6 +41,42 @@ export interface GraphSummary {
   by_label: Record<string, number>
 }
 
+export interface InferredConnection {
+  kind: 'chained' | 'bridged'
+  source: string
+  target: string
+  because: string
+}
+
+export interface ConflictClaim {
+  object: string
+  notes: { id: string; title: string }[]
+}
+
+export interface Conflict {
+  subject: string
+  predicate: string
+  claims: ConflictClaim[]
+}
+
+export interface Insight {
+  text: string
+  label: string
+  score: number
+}
+
+export interface Enrichment {
+  inferred: InferredConnection[]
+  conflicts: Conflict[]
+  insights: Insight[]
+}
+
+export interface Suggestion {
+  text: string
+  label: string
+  also_in: { id: string; title: string }[]
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
@@ -67,4 +103,9 @@ export const api = {
     fetch(`/api/notes/${id}/entities`).then((r) => json<Extraction>(r)),
   graph: () =>
     fetch('/api/graph').then((r) => json<{ summary: GraphSummary }>(r)),
+  enrichment: () => fetch('/api/enrichment').then((r) => json<Enrichment>(r)),
+  suggestions: (id: string) =>
+    fetch(`/api/notes/${id}/suggestions`).then((r) =>
+      json<{ suggestions: Suggestion[] }>(r),
+    ),
 }

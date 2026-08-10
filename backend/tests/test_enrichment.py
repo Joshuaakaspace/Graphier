@@ -1,0 +1,65 @@
+import pytest
+from fastapi.testclient import TestClient
+
+from graphier.main import create_app
+
+
+@pytest.fixture()
+def client(tmp_path):
+    c = TestClient(create_app(vault_dir=str(tmp_path)))
+    for title, body in [
+        ("Research Log", "# Research Log\n\nAda Lovelace founded Acme Corp.\nAcme Corp acquired Widget Inc in 2025."),
+        ("History", "# History\n\nGrace Hopper founded Acme Corp, according to old records."),
+        ("Meeting Notes", "# Meeting Notes\n\nGrace Hopper met Alan Turing at Bletchley Manor."),
+    ]:
+        note_id = c.post("/api/notes", json={"title": title}).json()["id"]
+        c.put(f"/api/notes/{note_id}", json={"content": body})
+    return c
+
+
+def test_chained_inference_with_explanation(client):
+    inferred = client.get("/api/enrichment").json()["inferred"]
+    chained = [i for i in inferred if i["kind"] == "chained"]
+    assert any(
+        i["source"] == "Widget Inc" and i["target"] == "Ada Lovelace" for i in chained
+    ), chained
+    hit = next(i for i in chained if i["target"] == "Ada Lovelace")
+    assert "acquired by" in hit["because"] and "founded by" in hit["because"]
+
+
+def test_bridged_inference_only_across_notes(client):
+    inferred = client.get("/api/enrichment").json()["inferred"]
+    for item in inferred:
+        if item["kind"] == "bridged":
+            # bridged pairs must never co-occur in a single note
+            assert "never appear together" in item["because"]
+            assert "1942" not in (item["source"], item["target"])  # no DATE bridges
+
+
+def test_conflict_detected_across_notes(client):
+    conflicts = client.get("/api/enrichment").json()["conflicts"]
+    assert len(conflicts) == 1
+    conflict = conflicts[0]
+    assert conflict["subject"] == "Acme Corp"
+    assert conflict["predicate"] == "founded by"
+    objects = {c["object"] for c in conflict["claims"]}
+    assert objects == {"Ada Lovelace", "Grace Hopper"}
+    note_ids = {n["id"] for c in conflict["claims"] for n in c["notes"]}
+    assert note_ids == {"research-log", "history"}
+
+
+def test_insights_rank_central_entities(client):
+    insights = client.get("/api/enrichment").json()["insights"]
+    assert insights, "expected at least one insight"
+    texts = [i["text"] for i in insights]
+    assert "Acme Corp" in texts or "Grace Hopper" in texts
+    assert all(i["label"] != "DATE" for i in insights)
+    scores = [i["score"] for i in insights]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_suggestions_surface_cross_note_entities(client):
+    res = client.get("/api/notes/research-log/suggestions").json()["suggestions"]
+    grace_or_acme = [s for s in res if s["text"] in ("Acme Corp",)]
+    assert grace_or_acme, res
+    assert any(other["id"] == "history" for other in grace_or_acme[0]["also_in"])
