@@ -2,9 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import type { Enrichment, Extraction, GraphSummary, NoteMeta, Suggestion } from './api'
 import { Editor } from './Editor'
+import { EntityView } from './EntityView'
 import { GraphView } from './GraphView'
 import type { Selection } from './GraphView'
 import './App.css'
+
+const nodeKey = (text: string, label: string) => `${label}:${text.trim().toLowerCase()}`
 
 const LABEL_NAMES: Record<string, string> = {
   PERSON: 'People',
@@ -24,7 +27,8 @@ export default function App() {
   const [enrichment, setEnrichment] = useState<Enrichment | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [status, setStatus] = useState<'saved' | 'saving' | 'extracting'>('saved')
-  const [view, setView] = useState<'editor' | 'graph'>('editor')
+  const [view, setView] = useState<'editor' | 'graph' | 'entity'>('editor')
+  const [entityId, setEntityId] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
 
@@ -57,9 +61,30 @@ export default function App() {
     })
   }, [])
 
+  const openEntity = useCallback((id: string) => {
+    setEntityId(id)
+    setView('entity')
+    setSelection(null)
+  }, [])
+
+  const acceptSuggestion = useCallback(
+    (text: string) => {
+      if (!activeId) return
+      api.readNote(activeId).then((note) => {
+        const idx = note.content.indexOf(text)
+        if (idx < 0 || note.content.slice(idx - 2, idx) === '[[') return
+        const linked =
+          note.content.slice(0, idx) + `[[${text}]]` + note.content.slice(idx + text.length)
+        api.saveNote(activeId, linked).then(() => openNote(activeId))
+      })
+    },
+    [activeId, openNote],
+  )
+
   const handleChange = useCallback(
     (text: string) => {
       if (!activeId) return
+      setContent(text)
       setStatus('saving')
       window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(() => {
@@ -167,7 +192,17 @@ export default function App() {
       </aside>
 
       <main className="main">
-        {view === 'graph' ? (
+        {view === 'entity' && entityId ? (
+          <>
+            <div className="editor-head">
+              <button className="link-btn" onClick={() => setView(activeId ? 'editor' : 'graph')}>
+                ← back
+              </button>
+              <span className="note-id">entity</span>
+            </div>
+            <EntityView entityId={entityId} onOpenNote={openNote} onOpenEntity={openEntity} />
+          </>
+        ) : view === 'graph' ? (
           <>
             <div className="editor-head">
               <span className="note-id">vault graph</span>
@@ -218,6 +253,12 @@ export default function App() {
                   {selection.node.label} · {selection.node.count} mention
                   {selection.node.count === 1 ? '' : 's'}
                 </p>
+                <button
+                  className="btn-new"
+                  onClick={() => openEntity(selection.node!.id)}
+                >
+                  Open entity page
+                </button>
                 <ul>
                   {selection.node.notes.map((id) => (
                     <li key={id}>
@@ -240,16 +281,14 @@ export default function App() {
                     ? 'manual wiki-link'
                     : `extracted · ${(selection.edge.confidence * 100).toFixed(0)}% confidence`}
                 </p>
-                <p className="selection-meta">Appears in:</p>
-                <ul>
-                  {selection.edge.notes.map((id) => (
-                    <li key={id}>
-                      <button className="link-btn" onClick={() => openNote(id)}>
-                        {selection.noteTitles[id] ?? id}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                {selection.edge.evidence.map((ev, i) => (
+                  <blockquote className="evidence-quote" key={i}>
+                    “{ev.sentence}”
+                    <button className="link-btn" onClick={() => openNote(ev.note)}>
+                      — {selection.noteTitles[ev.note] ?? ev.note}
+                    </button>
+                  </blockquote>
+                ))}
               </>
             )}
           </section>
@@ -268,7 +307,15 @@ export default function App() {
             </h3>
             <ul>
               {items.map((text) => (
-                <li key={text}>{text}</li>
+                <li key={text}>
+                  {label === 'WIKILINK' ? (
+                    text
+                  ) : (
+                    <button className="link-btn" onClick={() => openEntity(nodeKey(text, label))}>
+                      {text}
+                    </button>
+                  )}
+                </li>
               ))}
             </ul>
           </section>
@@ -301,12 +348,21 @@ export default function App() {
             </h3>
             <ul className="suggestions">
               {suggestions.map((s) => (
-                <li key={s.text}>
-                  <span className="rel-entity">{s.text}</span>
-                  <span className="suggest-notes">
-                    {' — '}
-                    {s.also_in.map((n) => n.title).join(', ')}
+                <li key={s.text} className="suggestion-row">
+                  <span>
+                    <span className="rel-entity">{s.text}</span>
+                    <span className="suggest-notes">
+                      {' — '}
+                      {s.also_in.map((n) => n.title).join(', ')}
+                    </span>
                   </span>
+                  <button
+                    className="btn-accept"
+                    title={`Wrap "${s.text}" in a wiki-link`}
+                    onClick={() => acceptSuggestion(s.text)}
+                  >
+                    + Link
+                  </button>
                 </li>
               ))}
             </ul>
@@ -328,7 +384,12 @@ export default function App() {
                     const max = enrichment.insights[0].score || 1
                     return (
                       <li key={ins.text}>
-                        <span className="rel-entity">{ins.text}</span>
+                        <button
+                          className="link-btn"
+                          onClick={() => openEntity(nodeKey(ins.text, ins.label))}
+                        >
+                          {ins.text}
+                        </button>
                         <span
                           className="insight-bar"
                           style={{ width: `${Math.max(8, (ins.score / max) * 60)}px` }}

@@ -77,12 +77,19 @@ export interface Suggestion {
   also_in: { id: string; title: string }[]
 }
 
+export interface Evidence {
+  note: string
+  sentence: string
+  title?: string
+}
+
 export interface GraphNode {
   id: string
   text: string
   label: string
   count: number
   notes: string[]
+  evidence: Evidence[]
 }
 
 export interface GraphEdge {
@@ -92,6 +99,25 @@ export interface GraphEdge {
   origin: 'extracted' | 'manual'
   confidence: number
   notes: string[]
+  evidence: Evidence[]
+}
+
+export interface EntityRelation {
+  predicate: string
+  direction: 'in' | 'out'
+  other: string
+  other_id: string
+  origin: 'extracted' | 'manual'
+  confidence: number
+  evidence: Evidence[]
+}
+
+export interface EntityPage {
+  node: GraphNode
+  mentions: Evidence[]
+  relations: EntityRelation[]
+  inferred: InferredConnection[]
+  conflicts: Conflict[]
 }
 
 export interface FullGraph {
@@ -128,6 +154,8 @@ export const api = {
   graph: () =>
     fetch('/api/graph').then((r) => json<{ summary: GraphSummary }>(r)),
   fullGraph: () => fetch('/api/graph').then((r) => json<FullGraph>(r)),
+  entity: (id: string) =>
+    fetch(`/api/entity?id=${encodeURIComponent(id)}`).then((r) => json<EntityPage>(r)),
   enrichment: () => fetch('/api/enrichment').then((r) => json<Enrichment>(r)),
   suggestions: (id: string) =>
     fetch(`/api/notes/${id}/suggestions`).then((r) =>

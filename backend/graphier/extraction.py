@@ -100,6 +100,8 @@ class ExtractionService:
                     "object": r.object.text,
                     "object_label": r.object.label,
                     "confidence": r.confidence,
+                    # Anchor for sentence-level provenance.
+                    "start": min(r.subject.start_char, r.object.start_char),
                 }
                 for r in relations
             ],

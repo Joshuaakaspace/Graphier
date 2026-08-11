@@ -108,3 +108,34 @@ def test_reserved_and_malformed_rules_ignored(client):
     client.put(f"/api/notes/{note_id}", json={"content": body})
     result = client.get("/api/enrichment").json()
     assert all(i["kind"] != "custom" for i in result["inferred"])
+
+
+def test_edges_carry_sentence_evidence(client):
+    graph = client.get("/api/graph").json()
+    founded = next(
+        e for e in graph["edges"]
+        if e["predicate"] == "founded_by" and "research-log" in e["notes"]
+    )
+    assert founded["evidence"], founded
+    sentence = founded["evidence"][0]["sentence"]
+    assert "Ada Lovelace" in sentence and "founded" in sentence
+
+
+def test_entity_page_mentions_relations_and_conflicts(client):
+    page = client.get("/api/entity", params={"id": "ORG:acme corp"}).json()
+    assert page["node"]["text"] == "Acme Corp"
+
+    assert any(
+        "founded Acme Corp" in m["sentence"] and m["title"] == "Research Log"
+        for m in page["mentions"]
+    ), page["mentions"]
+
+    rel = next(r for r in page["relations"] if r["predicate"] == "founded_by")
+    assert rel["evidence"][0]["sentence"]
+
+    assert page["conflicts"] and page["conflicts"][0]["subject"] == "Acme Corp"
+    assert any("Acme Corp" in (i["source"], i["target"]) for i in page["inferred"])
+
+
+def test_entity_page_unknown_id_404(client):
+    assert client.get("/api/entity", params={"id": "ORG:nonexistent"}).status_code == 404

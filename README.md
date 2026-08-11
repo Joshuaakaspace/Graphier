@@ -28,6 +28,12 @@ aggregation, and a deterministic enrichment layer:
   colored by type and sized by mentions. Click a node or edge for its
   provenance (which notes it came from, extraction confidence, manual vs
   extracted); double-click a node to jump to its note.
+- **Entity pages with sentence-level provenance** — click any entity name to
+  see everything the vault knows about it: every mention quoted verbatim with
+  its source note, every relation backed by the exact sentence that asserted
+  it, plus the conflicts and inferences it participates in.
+- **One-click linking** — accept a link suggestion and the `[[wiki-link]]` is
+  written into your Markdown for you.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 
@@ -47,6 +53,8 @@ aggregation, and a deterministic enrichment layer:
 </p>
 
 ![Graph canvas](docs/graph-view.png)
+
+![Entity page](docs/entity-page.png)
 
 ## Run it
 

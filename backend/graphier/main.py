@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from .enrichment import Enricher, enrich
 from .extraction import ExtractionService
-from .graph import build_graph
+from .graph import build_graph, entity_page
 from .vault import NoteNotFound, Vault, VaultError
 
 
@@ -89,6 +89,25 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
     @app.get("/api/enrichment")
     def enrichment():
         return enrich(build_graph(vault, extractor))
+
+    @app.get("/api/entity")
+    def entity(id: str):
+        graph_data = build_graph(vault, extractor)
+        page = entity_page(graph_data, id)
+        if page is None:
+            raise HTTPException(404, f"entity not found: {id}")
+        # Vault-level intelligence scoped to this entity.
+        enrichment_data = enrich(graph_data)
+        text = page["node"]["text"]
+        page["inferred"] = [
+            i for i in enrichment_data["inferred"] if text in (i["source"], i["target"])
+        ]
+        page["conflicts"] = [
+            c
+            for c in enrichment_data["conflicts"]
+            if c["subject"] == text or any(cl["object"] == text for cl in c["claims"])
+        ]
+        return page
 
     @app.get("/api/notes/{note_id}/suggestions")
     def note_suggestions(note_id: str):
