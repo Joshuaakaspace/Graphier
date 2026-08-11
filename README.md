@@ -8,11 +8,53 @@ underneath — people, organizations, places, and dates light up as you type,
 relations are extracted with confidence scores, and `[[wiki-links]]` become
 explicit edges. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
 
-**Status: Phase 1 walking skeleton** — vault CRUD, live entity extraction with
-in-editor underlines, entity/relations panel, and vault-wide graph aggregation.
-Graph canvas, provenance panel, and reasoning are later phases.
+**Status: Phase 1 + vault intelligence** — vault CRUD, live entity extraction
+with in-editor underlines, entity/relations panel, vault-wide graph
+aggregation, and a deterministic enrichment layer:
 
-![Graphier screenshot](docs/screenshot.png)
+- **Inferred connections** — Semantica's Datalog reasoner forward-chains rules
+  over extracted facts: multi-hop chains ("Widget Inc ↔ Ada Lovelace, because
+  Widget Inc was acquired by Acme Corp, which was founded by Ada Lovelace")
+  and hidden bridges ("X and Y never appear together, but both appear with
+  Z"). Every inference carries its derivation.
+- **Conflict detection** — the same subject + predicate asserted differently
+  in different notes gets flagged with both sources ("Acme Corp founded by:
+  Grace Hopper (History) vs Ada Lovelace (Research Log)").
+- **Link suggestions** — entities in the current note that other notes also
+  mention.
+- **Central entities** — PageRank over the vault graph via Semantica's
+  CentralityCalculator: what your vault actually revolves around.
+- **Graph canvas** — a force-directed Sigma.js view of the whole vault, nodes
+  colored by type and sized by mentions. Click a node or edge for its
+  provenance (which notes it came from, extraction confidence, manual vs
+  extracted); double-click a node to jump to its note.
+- **Entity pages with sentence-level provenance** — click any entity name to
+  see everything the vault knows about it: every mention quoted verbatim with
+  its source note, every relation backed by the exact sentence that asserted
+  it, plus the conflicts and inferences it participates in.
+- **One-click linking** — accept a link suggestion and the `[[wiki-link]]` is
+  written into your Markdown for you.
+- **Your rules program the reasoner** — put a ```` ```datalog ```` block in
+  any note and its Horn clauses join the inference engine:
+
+  ~~~markdown
+  ```datalog
+  empire_builder(P, B) :- rel(C, P, founded_by), rel(B, C, acquired_by)
+  ```
+  ~~~
+
+  Derived facts show up as inferred connections, citing your rule and the
+  note it lives in. `rel(Subject, Object, predicate)` are extracted
+  relations; `comention(A, B, note)` are co-mentions.
+
+<p>
+  <img src="docs/screenshot.png" alt="Graphier editor" width="70%" />
+  <img src="docs/panel-intelligence.png" alt="Vault intelligence panel" width="19%" />
+</p>
+
+![Graph canvas](docs/graph-view.png)
+
+![Entity page](docs/entity-page.png)
 
 ## Run it
 

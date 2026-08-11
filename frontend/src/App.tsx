@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
-import type { Extraction, GraphSummary, NoteMeta } from './api'
+import type { Enrichment, Extraction, GraphSummary, NoteMeta, Suggestion } from './api'
 import { Editor } from './Editor'
+import { EntityView } from './EntityView'
+import { GraphView } from './GraphView'
+import type { Selection } from './GraphView'
 import './App.css'
+
+const nodeKey = (text: string, label: string) => `${label}:${text.trim().toLowerCase()}`
 
 const LABEL_NAMES: Record<string, string> = {
   PERSON: 'People',
@@ -19,7 +24,12 @@ export default function App() {
   const [content, setContent] = useState<string>('')
   const [extraction, setExtraction] = useState<Extraction | null>(null)
   const [summary, setSummary] = useState<GraphSummary | null>(null)
+  const [enrichment, setEnrichment] = useState<Enrichment | null>(null)
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [status, setStatus] = useState<'saved' | 'saving' | 'extracting'>('saved')
+  const [view, setView] = useState<'editor' | 'graph' | 'entity'>('editor')
+  const [entityId, setEntityId] = useState<string | null>(null)
+  const [selection, setSelection] = useState<Selection | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
 
   const refreshNotes = useCallback(() => api.listNotes().then(setNotes), [])
@@ -27,24 +37,54 @@ export default function App() {
     () => api.graph().then((g) => setSummary(g.summary)).catch(() => {}),
     [],
   )
+  const refreshEnrichment = useCallback(
+    () => api.enrichment().then(setEnrichment).catch(() => {}),
+    [],
+  )
 
   useEffect(() => {
     refreshNotes()
     refreshSummary()
-  }, [refreshNotes, refreshSummary])
+    refreshEnrichment()
+  }, [refreshNotes, refreshSummary, refreshEnrichment])
 
   const openNote = useCallback((id: string) => {
     api.readNote(id).then((note) => {
+      setView('editor')
+      setSelection(null)
       setActiveId(id)
       setContent(note.content)
       setExtraction(null)
+      setSuggestions([])
       api.entities(id).then(setExtraction).catch(() => {})
+      api.suggestions(id).then((s) => setSuggestions(s.suggestions)).catch(() => {})
     })
   }, [])
+
+  const openEntity = useCallback((id: string) => {
+    setEntityId(id)
+    setView('entity')
+    setSelection(null)
+  }, [])
+
+  const acceptSuggestion = useCallback(
+    (text: string) => {
+      if (!activeId) return
+      api.readNote(activeId).then((note) => {
+        const idx = note.content.indexOf(text)
+        if (idx < 0 || note.content.slice(idx - 2, idx) === '[[') return
+        const linked =
+          note.content.slice(0, idx) + `[[${text}]]` + note.content.slice(idx + text.length)
+        api.saveNote(activeId, linked).then(() => openNote(activeId))
+      })
+    },
+    [activeId, openNote],
+  )
 
   const handleChange = useCallback(
     (text: string) => {
       if (!activeId) return
+      setContent(text)
       setStatus('saving')
       window.clearTimeout(saveTimer.current)
       saveTimer.current = window.setTimeout(() => {
@@ -59,11 +99,13 @@ export default function App() {
             setStatus('saved')
             refreshNotes()
             refreshSummary()
+            refreshEnrichment()
+            api.suggestions(activeId).then((s) => setSuggestions(s.suggestions)).catch(() => {})
           })
           .catch(() => setStatus('saved'))
       }, 600)
     },
-    [activeId, refreshNotes, refreshSummary],
+    [activeId, refreshNotes, refreshSummary, refreshEnrichment],
   )
 
   const createNote = useCallback(() => {
@@ -101,6 +143,23 @@ export default function App() {
             + Note
           </button>
         </header>
+        <div className="view-toggle">
+          <button
+            className={view === 'editor' ? 'active' : ''}
+            onClick={() => setView('editor')}
+          >
+            Notes
+          </button>
+          <button
+            className={view === 'graph' ? 'active' : ''}
+            onClick={() => {
+              setView('graph')
+              setSelection(null)
+            }}
+          >
+            Graph
+          </button>
+        </div>
         <nav className="note-list">
           {notes.map((n) => (
             <div
@@ -133,7 +192,27 @@ export default function App() {
       </aside>
 
       <main className="main">
-        {activeId ? (
+        {view === 'entity' && entityId ? (
+          <>
+            <div className="editor-head">
+              <button className="link-btn" onClick={() => setView(activeId ? 'editor' : 'graph')}>
+                ← back
+              </button>
+              <span className="note-id">entity</span>
+            </div>
+            <EntityView entityId={entityId} onOpenNote={openNote} onOpenEntity={openEntity} />
+          </>
+        ) : view === 'graph' ? (
+          <>
+            <div className="editor-head">
+              <span className="note-id">vault graph</span>
+              <span className="status">
+                double-click a node to open its note · click an edge for provenance
+              </span>
+            </div>
+            <GraphView onOpenNote={openNote} onSelect={setSelection} />
+          </>
+        ) : activeId ? (
           <>
             <div className="editor-head">
               <span className="note-id">{activeId}.md</span>
@@ -160,9 +239,66 @@ export default function App() {
       </main>
 
       <aside className="panel">
-        <h2>In this note</h2>
-        {grouped.length === 0 && <p className="empty">Nothing extracted yet.</p>}
-        {grouped.map(([label, items]) => (
+        {view === 'graph' && (
+          <section className="selection-card">
+            <h2>Selection</h2>
+            {!selection && <p className="empty">Click a node or an edge.</p>}
+            {selection?.kind === 'node' && selection.node && (
+              <>
+                <h3>
+                  <span className={`dot dot-${selection.node.label}`} />
+                  {selection.node.text}
+                </h3>
+                <p className="selection-meta">
+                  {selection.node.label} · {selection.node.count} mention
+                  {selection.node.count === 1 ? '' : 's'}
+                </p>
+                <button
+                  className="btn-new"
+                  onClick={() => openEntity(selection.node!.id)}
+                >
+                  Open entity page
+                </button>
+                <ul>
+                  {selection.node.notes.map((id) => (
+                    <li key={id}>
+                      <button className="link-btn" onClick={() => openNote(id)}>
+                        {selection.noteTitles[id] ?? id}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {selection?.kind === 'edge' && selection.edge && (
+              <>
+                <h3>
+                  <span className="dot dot-REL" />
+                  {selection.edge.predicate.replace(/_/g, ' ')}
+                </h3>
+                <p className="selection-meta">
+                  {selection.edge.origin === 'manual'
+                    ? 'manual wiki-link'
+                    : `extracted · ${(selection.edge.confidence * 100).toFixed(0)}% confidence`}
+                </p>
+                {selection.edge.evidence.map((ev, i) => (
+                  <blockquote className="evidence-quote" key={i}>
+                    “{ev.sentence}”
+                    <button className="link-btn" onClick={() => openNote(ev.note)}>
+                      — {selection.noteTitles[ev.note] ?? ev.note}
+                    </button>
+                  </blockquote>
+                ))}
+              </>
+            )}
+          </section>
+        )}
+        {view === 'editor' && <h2>In this note</h2>}
+        {view === 'editor' && grouped.length === 0 && (
+          <p className="empty">Nothing extracted yet.</p>
+        )}
+        {view === 'editor' &&
+        grouped.map(([label, items]) => (
           <section key={label} className="entity-group">
             <h3>
               <span className={`dot dot-${label}`} />
@@ -171,12 +307,20 @@ export default function App() {
             </h3>
             <ul>
               {items.map((text) => (
-                <li key={text}>{text}</li>
+                <li key={text}>
+                  {label === 'WIKILINK' ? (
+                    text
+                  ) : (
+                    <button className="link-btn" onClick={() => openEntity(nodeKey(text, label))}>
+                      {text}
+                    </button>
+                  )}
+                </li>
               ))}
             </ul>
           </section>
         ))}
-        {extraction && extraction.relations.length > 0 && (
+        {view === 'editor' && extraction && extraction.relations.length > 0 && (
           <section className="entity-group">
             <h3>
               <span className="dot dot-REL" />
@@ -193,6 +337,121 @@ export default function App() {
               ))}
             </ul>
           </section>
+        )}
+
+        {view === 'editor' && activeId && suggestions.length > 0 && (
+          <section className="entity-group">
+            <h3>
+              <span className="dot dot-SUGGEST" />
+              Also mentioned in
+              <span className="count">{suggestions.length}</span>
+            </h3>
+            <ul className="suggestions">
+              {suggestions.map((s) => (
+                <li key={s.text} className="suggestion-row">
+                  <span>
+                    <span className="rel-entity">{s.text}</span>
+                    <span className="suggest-notes">
+                      {' — '}
+                      {s.also_in.map((n) => n.title).join(', ')}
+                    </span>
+                  </span>
+                  <button
+                    className="btn-accept"
+                    title={`Wrap "${s.text}" in a wiki-link`}
+                    onClick={() => acceptSuggestion(s.text)}
+                  >
+                    + Link
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {enrichment && (
+          <>
+            <h2 className="vault-head">Vault intelligence</h2>
+
+            {enrichment.insights.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-INSIGHT" />
+                  Central entities
+                </h3>
+                <ul className="insights">
+                  {enrichment.insights.map((ins) => {
+                    const max = enrichment.insights[0].score || 1
+                    return (
+                      <li key={ins.text}>
+                        <button
+                          className="link-btn"
+                          onClick={() => openEntity(nodeKey(ins.text, ins.label))}
+                        >
+                          {ins.text}
+                        </button>
+                        <span
+                          className="insight-bar"
+                          style={{ width: `${Math.max(8, (ins.score / max) * 60)}px` }}
+                        />
+                      </li>
+                    )
+                  })}
+                </ul>
+              </section>
+            )}
+
+            {enrichment.inferred.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-INFERRED" />
+                  Inferred connections
+                  <span className="count">{enrichment.inferred.length}</span>
+                </h3>
+                <ul className="inferred">
+                  {enrichment.inferred.slice(0, 6).map((inf, i) => (
+                    <li key={i}>
+                      <div>
+                        <span className="rel-entity">{inf.source}</span>
+                        <span className="rel-pred"> ↔ </span>
+                        <span className="rel-entity">{inf.target}</span>
+                      </div>
+                      <div className="because">{inf.because}</div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {enrichment.conflicts.length > 0 && (
+              <section className="entity-group">
+                <h3>
+                  <span className="dot dot-CONFLICT" />
+                  Conflicts
+                  <span className="count">{enrichment.conflicts.length}</span>
+                </h3>
+                <ul className="conflicts">
+                  {enrichment.conflicts.map((c, i) => (
+                    <li key={i}>
+                      <div>
+                        <span className="rel-entity">{c.subject}</span>
+                        <span className="rel-pred"> {c.predicate} </span>
+                      </div>
+                      {c.claims.map((claim) => (
+                        <div className="claim" key={claim.object}>
+                          {claim.object}
+                          <span className="suggest-notes">
+                            {' '}
+                            ({claim.notes.map((n) => n.title).join(', ')})
+                          </span>
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+          </>
         )}
       </aside>
     </div>
