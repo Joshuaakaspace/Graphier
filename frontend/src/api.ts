@@ -42,7 +42,7 @@ export interface GraphSummary {
 }
 
 export interface InferredConnection {
-  kind: 'chained' | 'bridged'
+  kind: 'chained' | 'bridged' | 'custom'
   source: string
   target: string
   because: string
@@ -77,6 +77,30 @@ export interface Suggestion {
   also_in: { id: string; title: string }[]
 }
 
+export interface GraphNode {
+  id: string
+  text: string
+  label: string
+  count: number
+  notes: string[]
+}
+
+export interface GraphEdge {
+  source: string
+  target: string
+  predicate: string
+  origin: 'extracted' | 'manual'
+  confidence: number
+  notes: string[]
+}
+
+export interface FullGraph {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  note_titles: Record<string, string>
+  summary: GraphSummary
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
@@ -103,6 +127,7 @@ export const api = {
     fetch(`/api/notes/${id}/entities`).then((r) => json<Extraction>(r)),
   graph: () =>
     fetch('/api/graph').then((r) => json<{ summary: GraphSummary }>(r)),
+  fullGraph: () => fetch('/api/graph').then((r) => json<FullGraph>(r)),
   enrichment: () => fetch('/api/enrichment').then((r) => json<Enrichment>(r)),
   suggestions: (id: string) =>
     fetch(`/api/notes/${id}/suggestions`).then((r) =>

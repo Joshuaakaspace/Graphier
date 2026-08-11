@@ -44,6 +44,11 @@ INFERENCE_RULES = [
 # related_to is co-occurrence noise from the pattern extractor, not a claim.
 _GENERIC_PREDICATES = {"related_to"}
 
+# Predicates users may reference in their own rules but not redefine as heads.
+_RESERVED_PREDICATES = {"comention", "rel", "chained", "bridged"}
+
+_RULE_HEAD_RE = re.compile(r"^\s*([a-zA-Z0-9_]+)\s*\(\s*([^)]+)\s*\)\s*:-")
+
 
 def _atom(value: str) -> str:
     """Normalize a value into a lowercase datalog constant."""
@@ -98,10 +103,46 @@ class Enricher:
 
         for rule, _, _ in INFERENCE_RULES:
             reasoner.add_rule(rule)
+
+        # Rules the user wrote in ```datalog blocks program the same reasoner.
+        custom_heads: list[tuple[str, int, dict[str, str]]] = []
+        for entry in self.graph.get("custom_rules", []):
+            head = _RULE_HEAD_RE.match(entry["rule"])
+            if not head or head.group(1) in _RESERVED_PREDICATES:
+                continue
+            arity = len(head.group(2).split(","))
+            try:
+                reasoner.add_rule(entry["rule"])
+            except Exception:
+                continue  # a malformed rule silently contributes nothing
+            custom_heads.append((head.group(1), arity, entry))
+
         reasoner.derive_all()
 
         results: list[dict[str, Any]] = []
         seen: set[frozenset] = set()
+
+        for predicate, arity, entry in custom_heads:
+            variables = [f"V{i}" for i in range(arity)]
+            pattern = f"{predicate}({', '.join(variables)})"
+            for binding in reasoner.query(pattern):
+                values = [binding[v] for v in variables]
+                key = frozenset([predicate, *values])
+                if key in seen or len(set(values)) < min(2, arity):
+                    continue
+                seen.add(key)
+                results.append(
+                    {
+                        "kind": "custom",
+                        "source": self.names.get(values[0], values[0]),
+                        "target": self.names.get(values[1], values[1]) if arity > 1 else "",
+                        "because": (
+                            f"{predicate.replace('_', ' ')} — your rule in "
+                            f"{self.graph['note_titles'].get(entry['note'], entry['note'])}: "
+                            f"{entry['rule']}"
+                        ),
+                    }
+                )
 
         for binding in reasoner.query("chained(X, Z, Y, P1, P2)"):
             x, z = binding["X"], binding["Z"]

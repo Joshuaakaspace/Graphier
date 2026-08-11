@@ -63,3 +63,48 @@ def test_suggestions_surface_cross_note_entities(client):
     grace_or_acme = [s for s in res if s["text"] in ("Acme Corp",)]
     assert grace_or_acme, res
     assert any(other["id"] == "history" for other in grace_or_acme[0]["also_in"])
+
+
+def test_custom_datalog_rules_from_notes(client):
+    body = (
+        "# Rules\n\nMy vault rules:\n\n"
+        "```datalog\n"
+        "% anyone who founded a company that acquired another is an empire builder\n"
+        "empire_builder(P, B) :- rel(C, P, founded_by), rel(B, C, acquired_by)\n"
+        "```\n"
+    )
+    note_id = client.post("/api/notes", json={"title": "Rules"}).json()["id"]
+    client.put(f"/api/notes/{note_id}", json={"content": body})
+
+    graph = client.get("/api/graph").json()
+    assert len(graph["custom_rules"]) == 1
+    assert graph["custom_rules"][0]["note"] == "rules"
+
+    inferred = client.get("/api/enrichment").json()["inferred"]
+    custom = [i for i in inferred if i["kind"] == "custom"]
+    assert any(
+        i["source"] == "Ada Lovelace" and i["target"] == "Widget Inc" for i in custom
+    ), custom
+    hit = next(i for i in custom if i["source"] == "Ada Lovelace")
+    assert "your rule in Rules" in hit["because"]
+
+
+def test_rule_blocks_not_extracted_as_entities(client):
+    body = "# Rules Two\n\n```datalog\nFriend Of Mine(X) :- comention(X, Y, N)\n```\n"
+    note_id = client.post("/api/notes", json={"title": "Rules Two"}).json()["id"]
+    client.put(f"/api/notes/{note_id}", json={"content": body})
+    entities = client.get(f"/api/notes/{note_id}/entities").json()["entities"]
+    assert entities == []
+
+
+def test_reserved_and_malformed_rules_ignored(client):
+    body = (
+        "# Bad Rules\n\n```datalog\n"
+        "rel(X, Y) :- comention(X, Y, N)\n"
+        "broken( :- nonsense\n"
+        "```\n"
+    )
+    note_id = client.post("/api/notes", json={"title": "Bad Rules"}).json()["id"]
+    client.put(f"/api/notes/{note_id}", json={"content": body})
+    result = client.get("/api/enrichment").json()
+    assert all(i["kind"] != "custom" for i in result["inferred"])

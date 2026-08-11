@@ -9,11 +9,15 @@ builds on in later phases.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from typing import Any
 
 from .extraction import ExtractionService
 from .vault import Vault
+
+# ```datalog blocks in any note program the vault's reasoner.
+_RULE_BLOCK_RE = re.compile(r"```datalog\s*\n(.*?)```", re.DOTALL)
 
 
 def _node_key(text: str, label: str) -> str:
@@ -24,10 +28,17 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
     nodes: dict[str, dict[str, Any]] = {}
     edges: dict[tuple, dict[str, Any]] = {}
     note_titles: dict[str, str] = {}
+    custom_rules: list[dict[str, str]] = []
 
     for meta in vault.list_notes():
         note_titles[meta.id] = meta.title
-        result = extractor.extract(vault.read(meta.id))
+        content = vault.read(meta.id)
+        for block in _RULE_BLOCK_RE.findall(content):
+            for line in block.splitlines():
+                line = line.strip()
+                if line and ":-" in line and not line.startswith("%"):
+                    custom_rules.append({"rule": line, "note": meta.id})
+        result = extractor.extract(content)
 
         for ent in result["entities"]:
             key = _node_key(ent["text"], ent["label"])
@@ -91,6 +102,7 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
         "nodes": list(nodes.values()),
         "edges": list(edges.values()),
         "note_titles": note_titles,
+        "custom_rules": custom_rules,
         "summary": {
             "notes": len(note_titles),
             "nodes": len(nodes),

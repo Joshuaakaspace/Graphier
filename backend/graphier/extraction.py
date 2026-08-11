@@ -20,6 +20,7 @@ from semantica.semantic_extract import NERExtractor, RelationExtractor  # noqa: 
 _WIKILINK_RE = re.compile(r"\[\[([^\[\]|]+)(?:\|[^\[\]]*)?\]\]")
 
 _MARKDOWN_CHARS = set("#*_`>[]()|")
+_CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
 
 
 def _mask_for_extraction(text: str) -> str:
@@ -33,6 +34,11 @@ def _mask_for_extraction(text: str) -> str:
     for m in _WIKILINK_RE.finditer(text):
         for i in range(m.start(), m.end()):
             chars[i] = " "
+    # Fenced code blocks (including ```datalog rules) aren't prose.
+    for m in _CODE_BLOCK_RE.finditer(text):
+        for i in range(m.start(), m.end()):
+            if chars[i] != "\n":
+                chars[i] = " "
     # Blank heading lines: the heading is the note's own title (it becomes a
     # NOTE node in the graph), not a mention to extract.
     pos = 0

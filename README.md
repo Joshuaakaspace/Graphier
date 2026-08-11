@@ -24,13 +24,29 @@ aggregation, and a deterministic enrichment layer:
   mention.
 - **Central entities** — PageRank over the vault graph via Semantica's
   CentralityCalculator: what your vault actually revolves around.
+- **Graph canvas** — a force-directed Sigma.js view of the whole vault, nodes
+  colored by type and sized by mentions. Click a node or edge for its
+  provenance (which notes it came from, extraction confidence, manual vs
+  extracted); double-click a node to jump to its note.
+- **Your rules program the reasoner** — put a ```` ```datalog ```` block in
+  any note and its Horn clauses join the inference engine:
 
-Graph canvas and full provenance UI are later phases.
+  ~~~markdown
+  ```datalog
+  empire_builder(P, B) :- rel(C, P, founded_by), rel(B, C, acquired_by)
+  ```
+  ~~~
+
+  Derived facts show up as inferred connections, citing your rule and the
+  note it lives in. `rel(Subject, Object, predicate)` are extracted
+  relations; `comention(A, B, note)` are co-mentions.
 
 <p>
   <img src="docs/screenshot.png" alt="Graphier editor" width="70%" />
   <img src="docs/panel-intelligence.png" alt="Vault intelligence panel" width="19%" />
 </p>
+
+![Graph canvas](docs/graph-view.png)
 
 ## Run it
 

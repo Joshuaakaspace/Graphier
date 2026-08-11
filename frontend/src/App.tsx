@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import type { Enrichment, Extraction, GraphSummary, NoteMeta, Suggestion } from './api'
 import { Editor } from './Editor'
+import { GraphView } from './GraphView'
+import type { Selection } from './GraphView'
 import './App.css'
 
 const LABEL_NAMES: Record<string, string> = {
@@ -22,6 +24,8 @@ export default function App() {
   const [enrichment, setEnrichment] = useState<Enrichment | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [status, setStatus] = useState<'saved' | 'saving' | 'extracting'>('saved')
+  const [view, setView] = useState<'editor' | 'graph'>('editor')
+  const [selection, setSelection] = useState<Selection | null>(null)
   const saveTimer = useRef<number | undefined>(undefined)
 
   const refreshNotes = useCallback(() => api.listNotes().then(setNotes), [])
@@ -42,6 +46,8 @@ export default function App() {
 
   const openNote = useCallback((id: string) => {
     api.readNote(id).then((note) => {
+      setView('editor')
+      setSelection(null)
       setActiveId(id)
       setContent(note.content)
       setExtraction(null)
@@ -112,6 +118,23 @@ export default function App() {
             + Note
           </button>
         </header>
+        <div className="view-toggle">
+          <button
+            className={view === 'editor' ? 'active' : ''}
+            onClick={() => setView('editor')}
+          >
+            Notes
+          </button>
+          <button
+            className={view === 'graph' ? 'active' : ''}
+            onClick={() => {
+              setView('graph')
+              setSelection(null)
+            }}
+          >
+            Graph
+          </button>
+        </div>
         <nav className="note-list">
           {notes.map((n) => (
             <div
@@ -144,7 +167,17 @@ export default function App() {
       </aside>
 
       <main className="main">
-        {activeId ? (
+        {view === 'graph' ? (
+          <>
+            <div className="editor-head">
+              <span className="note-id">vault graph</span>
+              <span className="status">
+                double-click a node to open its note · click an edge for provenance
+              </span>
+            </div>
+            <GraphView onOpenNote={openNote} onSelect={setSelection} />
+          </>
+        ) : activeId ? (
           <>
             <div className="editor-head">
               <span className="note-id">{activeId}.md</span>
@@ -171,9 +204,62 @@ export default function App() {
       </main>
 
       <aside className="panel">
-        <h2>In this note</h2>
-        {grouped.length === 0 && <p className="empty">Nothing extracted yet.</p>}
-        {grouped.map(([label, items]) => (
+        {view === 'graph' && (
+          <section className="selection-card">
+            <h2>Selection</h2>
+            {!selection && <p className="empty">Click a node or an edge.</p>}
+            {selection?.kind === 'node' && selection.node && (
+              <>
+                <h3>
+                  <span className={`dot dot-${selection.node.label}`} />
+                  {selection.node.text}
+                </h3>
+                <p className="selection-meta">
+                  {selection.node.label} · {selection.node.count} mention
+                  {selection.node.count === 1 ? '' : 's'}
+                </p>
+                <ul>
+                  {selection.node.notes.map((id) => (
+                    <li key={id}>
+                      <button className="link-btn" onClick={() => openNote(id)}>
+                        {selection.noteTitles[id] ?? id}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {selection?.kind === 'edge' && selection.edge && (
+              <>
+                <h3>
+                  <span className="dot dot-REL" />
+                  {selection.edge.predicate.replace(/_/g, ' ')}
+                </h3>
+                <p className="selection-meta">
+                  {selection.edge.origin === 'manual'
+                    ? 'manual wiki-link'
+                    : `extracted · ${(selection.edge.confidence * 100).toFixed(0)}% confidence`}
+                </p>
+                <p className="selection-meta">Appears in:</p>
+                <ul>
+                  {selection.edge.notes.map((id) => (
+                    <li key={id}>
+                      <button className="link-btn" onClick={() => openNote(id)}>
+                        {selection.noteTitles[id] ?? id}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
+        {view === 'editor' && <h2>In this note</h2>}
+        {view === 'editor' && grouped.length === 0 && (
+          <p className="empty">Nothing extracted yet.</p>
+        )}
+        {view === 'editor' &&
+        grouped.map(([label, items]) => (
           <section key={label} className="entity-group">
             <h3>
               <span className={`dot dot-${label}`} />
@@ -187,7 +273,7 @@ export default function App() {
             </ul>
           </section>
         ))}
-        {extraction && extraction.relations.length > 0 && (
+        {view === 'editor' && extraction && extraction.relations.length > 0 && (
           <section className="entity-group">
             <h3>
               <span className="dot dot-REL" />
@@ -206,7 +292,7 @@ export default function App() {
           </section>
         )}
 
-        {activeId && suggestions.length > 0 && (
+        {view === 'editor' && activeId && suggestions.length > 0 && (
           <section className="entity-group">
             <h3>
               <span className="dot dot-SUGGEST" />
