@@ -17,6 +17,8 @@ from pydantic import BaseModel
 from .enrichment import Enricher, enrich
 from .extraction import ExtractionService
 from .graph import build_graph, entity_page
+from .history import HistoryError, VaultHistory, graph_at
+from .search import search as search_vault
 from .vault import NoteNotFound, Vault, VaultError
 
 
@@ -28,9 +30,14 @@ class NoteUpdate(BaseModel):
     content: str
 
 
+class SnapshotCreate(BaseModel):
+    message: str = "snapshot"
+
+
 def create_app(vault_dir: str | None = None) -> FastAPI:
     vault = Vault(vault_dir or os.environ.get("GRAPHIER_VAULT", "vault"))
     extractor = ExtractionService()
+    history = VaultHistory(vault)
     app = FastAPI(title="Graphier", version="0.1.0")
 
     @app.get("/api/health")
@@ -83,8 +90,30 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
         return extractor.extract(content)
 
     @app.get("/api/graph")
-    def graph():
+    def graph(at: str | None = None):
+        if at:
+            try:
+                return graph_at(history, extractor, at)
+            except HistoryError as exc:
+                raise HTTPException(400, str(exc))
         return build_graph(vault, extractor)
+
+    @app.get("/api/search")
+    def search(q: str):
+        notes = {meta.id: vault.read(meta.id) for meta in vault.list_notes()}
+        graph_data = build_graph(vault, extractor)
+        return search_vault(q, notes, graph_data["note_titles"], graph_data)
+
+    @app.get("/api/history")
+    def list_history():
+        return {"snapshots": history.list_snapshots()}
+
+    @app.post("/api/history/snapshot", status_code=201)
+    def create_snapshot(body: SnapshotCreate):
+        try:
+            return history.snapshot(body.message)
+        except HistoryError as exc:
+            raise HTTPException(500, str(exc))
 
     @app.get("/api/enrichment")
     def enrichment():

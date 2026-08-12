@@ -25,9 +25,10 @@ export interface Selection {
 interface GraphViewProps {
   onOpenNote: (id: string) => void
   onSelect: (selection: Selection | null) => void
+  at?: string
 }
 
-export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
+export function GraphView({ onOpenNote, onSelect, at }: GraphViewProps) {
   const container = useRef<HTMLDivElement>(null)
   const [empty, setEmpty] = useState(false)
 
@@ -35,8 +36,9 @@ export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
     if (!container.current) return
     let renderer: Sigma | null = null
     let cancelled = false
+    setEmpty(false)
 
-    api.fullGraph().then((data: FullGraph) => {
+    api.fullGraph(at).then((data: FullGraph) => {
       if (cancelled || !container.current) return
       if (data.nodes.length === 0) {
         setEmpty(true)
@@ -99,9 +101,9 @@ export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
       cancelled = true
       renderer?.kill()
     }
-    // Rebuild only on mount; the view is closed and reopened to refresh.
+    // Rebuild on mount and when the snapshot changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [at])
 
   if (empty) {
     return (

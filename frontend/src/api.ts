@@ -127,6 +127,24 @@ export interface FullGraph {
   summary: GraphSummary
 }
 
+export interface SearchHit {
+  id: string
+  title: string
+  score: number
+  snippet: string
+}
+
+export interface SearchResponse {
+  results: SearchHit[]
+  entities: { id: string; text: string; label: string }[]
+}
+
+export interface Snapshot {
+  sha: string
+  timestamp: number
+  message: string
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
@@ -153,7 +171,19 @@ export const api = {
     fetch(`/api/notes/${id}/entities`).then((r) => json<Extraction>(r)),
   graph: () =>
     fetch('/api/graph').then((r) => json<{ summary: GraphSummary }>(r)),
-  fullGraph: () => fetch('/api/graph').then((r) => json<FullGraph>(r)),
+  fullGraph: (at?: string) =>
+    fetch(at ? `/api/graph?at=${encodeURIComponent(at)}` : '/api/graph').then((r) =>
+      json<FullGraph>(r),
+    ),
+  search: (q: string) =>
+    fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => json<SearchResponse>(r)),
+  history: () => fetch('/api/history').then((r) => json<{ snapshots: Snapshot[] }>(r)),
+  snapshot: (message: string) =>
+    fetch('/api/history/snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    }).then((r) => json<{ created: boolean; sha?: string }>(r)),
   entity: (id: string) =>
     fetch(`/api/entity?id=${encodeURIComponent(id)}`).then((r) => json<EntityPage>(r)),
   enrichment: () => fetch('/api/enrichment').then((r) => json<Enrichment>(r)),

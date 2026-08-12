@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from './api'
-import type { Enrichment, Extraction, GraphSummary, NoteMeta, Suggestion } from './api'
+import type {
+  Enrichment,
+  Extraction,
+  GraphSummary,
+  NoteMeta,
+  SearchResponse,
+  Snapshot,
+  Suggestion,
+} from './api'
 import { Editor } from './Editor'
 import { EntityView } from './EntityView'
 import { GraphView } from './GraphView'
@@ -30,7 +38,12 @@ export default function App() {
   const [view, setView] = useState<'editor' | 'graph' | 'entity'>('editor')
   const [entityId, setEntityId] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [query, setQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([])
+  const [atSnapshot, setAtSnapshot] = useState<string>('')
   const saveTimer = useRef<number | undefined>(undefined)
+  const searchTimer = useRef<number | undefined>(undefined)
 
   const refreshNotes = useCallback(() => api.listNotes().then(setNotes), [])
   const refreshSummary = useCallback(
@@ -41,12 +54,17 @@ export default function App() {
     () => api.enrichment().then(setEnrichment).catch(() => {}),
     [],
   )
+  const refreshSnapshots = useCallback(
+    () => api.history().then((h) => setSnapshots(h.snapshots)).catch(() => {}),
+    [],
+  )
 
   useEffect(() => {
     refreshNotes()
     refreshSummary()
     refreshEnrichment()
-  }, [refreshNotes, refreshSummary, refreshEnrichment])
+    refreshSnapshots()
+  }, [refreshNotes, refreshSummary, refreshEnrichment, refreshSnapshots])
 
   const openNote = useCallback((id: string) => {
     api.readNote(id).then((note) => {
@@ -66,6 +84,25 @@ export default function App() {
     setView('entity')
     setSelection(null)
   }, [])
+
+  const handleSearch = useCallback((text: string) => {
+    setQuery(text)
+    window.clearTimeout(searchTimer.current)
+    if (!text.trim()) {
+      setSearchResults(null)
+      return
+    }
+    searchTimer.current = window.setTimeout(() => {
+      api.search(text).then(setSearchResults).catch(() => {})
+    }, 300)
+  }, [])
+
+  const takeSnapshot = useCallback(() => {
+    api.snapshot('snapshot').then((res) => {
+      if (!res.created) window.alert('Nothing changed since the last snapshot.')
+      refreshSnapshots()
+    })
+  }, [refreshSnapshots])
 
   const acceptSuggestion = useCallback(
     (text: string) => {
@@ -160,6 +197,39 @@ export default function App() {
             Graph
           </button>
         </div>
+        <input
+          className="search-box"
+          type="search"
+          placeholder="Search the vault…"
+          value={query}
+          onChange={(e) => handleSearch(e.target.value)}
+        />
+        {query.trim() && searchResults ? (
+          <nav className="note-list search-results">
+            {searchResults.entities.length > 0 && (
+              <div className="entity-hits">
+                {searchResults.entities.map((e) => (
+                  <button
+                    key={e.id}
+                    className={`entity-chip chip-${e.label}`}
+                    onClick={() => openEntity(e.id)}
+                  >
+                    {e.text}
+                  </button>
+                ))}
+              </div>
+            )}
+            {searchResults.results.map((hit) => (
+              <div key={hit.id} className="note-item search-hit" onClick={() => openNote(hit.id)}>
+                <div>
+                  <span className="note-title">{hit.title}</span>
+                  <div className="snippet">{hit.snippet}</div>
+                </div>
+              </div>
+            ))}
+            {searchResults.results.length === 0 && <p className="empty">No matches.</p>}
+          </nav>
+        ) : (
         <nav className="note-list">
           {notes.map((n) => (
             <div
@@ -182,6 +252,7 @@ export default function App() {
           ))}
           {notes.length === 0 && <p className="empty">No notes yet.</p>}
         </nav>
+        )}
         {summary && (
           <footer className="graph-summary">
             <span>{summary.notes} notes</span>
@@ -205,12 +276,35 @@ export default function App() {
         ) : view === 'graph' ? (
           <>
             <div className="editor-head">
-              <span className="note-id">vault graph</span>
-              <span className="status">
-                double-click a node to open its note · click an edge for provenance
+              <span className="note-id">
+                vault graph{atSnapshot ? ` @ ${atSnapshot}` : ''}
+              </span>
+              <span className="timeline">
+                <select
+                  value={atSnapshot}
+                  onChange={(e) => {
+                    setAtSnapshot(e.target.value)
+                    setSelection(null)
+                  }}
+                >
+                  <option value="">Live</option>
+                  {snapshots.map((s) => (
+                    <option key={s.sha} value={s.sha}>
+                      {new Date(s.timestamp * 1000).toLocaleString()} · {s.message}
+                    </option>
+                  ))}
+                </select>
+                <button className="btn-new" onClick={takeSnapshot}>
+                  Snapshot
+                </button>
               </span>
             </div>
-            <GraphView onOpenNote={openNote} onSelect={setSelection} />
+            <GraphView
+              key={atSnapshot}
+              at={atSnapshot || undefined}
+              onOpenNote={openNote}
+              onSelect={setSelection}
+            />
           </>
         ) : activeId ? (
           <>
