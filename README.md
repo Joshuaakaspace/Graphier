@@ -120,6 +120,30 @@ aggregation, and a deterministic enrichment layer:
 
 ![Entity page](docs/entity-page.png)
 
+## The vault's history, drawn
+
+Chronology treats time as a first-class dimension of the graph. Every
+dated fact — an ISO date in Markdown prose, "March 1948" inside a Word
+document, "12/06/1952" in a PDF — is parsed to a sortable key and becomes
+an event that knows its exact sentence, its source, and its cast.
+
+The **entity lifeline chart** heads the Timeline view: each key entity
+gets a track on a shared year axis, a dot per dated event, and a lifeline
+from first to last appearance — so "who was active when" reads at a
+glance. Hover a dot for the date, source, and quoted sentence; click it to
+jump to the event card; click a name to open the entity page.
+
+![Entity lifelines](docs/lifelines.png)
+
+Below the chart, the event list groups the same facts by year — each card
+quotes its sentence verbatim, links its source with a format badge
+(PDF/DOCX/HTML for documents, none for notes), and offers the entities
+involved as clickable chips. Structured and unstructured sources
+interleave on one axis: a board decision recorded in a DOCX sits between
+two facts stated in your own notes, provenance intact either way.
+
+![Timeline](docs/timeline.png)
+
 ## Run it
 
 Backend (Python 3.10+):
