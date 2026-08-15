@@ -78,12 +78,14 @@ aggregation, and a deterministic enrichment layer:
   query the graph; `?- pred(X, Y)` runs a Datalog query against the
   vault's facts *and your own rules*. Results update on every save —
   Dataview, but against a knowledge graph with a reasoner behind it.
-- **PDF sources** — drop a PDF into the vault (the **+ PDF** button, or just
-  copy the file in). Its text layer is extracted with `pypdf` and runs
-  through the exact same pipeline: entities and relations (including your
-  domain types), sentence evidence pointing back into the document,
-  search, suggestions, inference, and queries all treat it as a read-only
-  source alongside your Markdown notes.
+- **Document sources: PDF, HTML, DOCX, TXT** — drop a file into the vault
+  (the **+ Doc** button, or just copy it in). Text is extracted (`pypdf`
+  for PDFs; stdlib parsers for HTML — scripts/styles stripped — and DOCX)
+  and runs through the exact same pipeline: entities and relations
+  (including your domain types), sentence evidence pointing back into the
+  document, search, suggestions, inference, and queries all treat it as a
+  read-only source alongside your Markdown notes. Scanned/image-only PDFs
+  need OCR and are rejected with a clear error.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 

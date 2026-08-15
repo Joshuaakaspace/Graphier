@@ -44,7 +44,7 @@ const LABEL_NAMES: Record<string, string> = {
 export default function App() {
   const [notes, setNotes] = useState<NoteMeta[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [activeKind, setActiveKind] = useState<'md' | 'pdf'>('md')
+  const [activeKind, setActiveKind] = useState<string>('md')
   const [content, setContent] = useState<string>('')
   const [extraction, setExtraction] = useState<Extraction | null>(null)
   const [summary, setSummary] = useState<GraphSummary | null>(null)
@@ -145,7 +145,7 @@ export default function App() {
           refreshSummary()
           openNote(id)
         })
-        .catch(() => window.alert('Could not read that PDF (no text layer?).'))
+        .catch(() => window.alert('Could not extract text from that document.'))
     },
     [openNote, refreshNotes, refreshSummary],
   )
@@ -233,11 +233,11 @@ export default function App() {
         <header className="sidebar-head">
           <h1>Graphier</h1>
           <span className="head-actions">
-            <label className="btn-upload" title="Add a PDF to the vault">
-              + PDF
+            <label className="btn-upload" title="Add a document (PDF, TXT, HTML, DOCX)">
+              + Doc
               <input
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,.txt,.html,.htm,.docx"
                 onChange={(e) => {
                   const file = e.target.files?.[0]
                   if (file) uploadPdf(file)
@@ -308,7 +308,7 @@ export default function App() {
               onClick={() => openNote(n.id)}
             >
               <span className="note-title">{n.title}</span>
-              {n.kind === 'pdf' && <span className="pdf-badge">PDF</span>}
+              {n.kind !== 'md' && <span className="pdf-badge">{n.kind.toUpperCase()}</span>}
               <button
                 className="btn-delete"
                 title="Delete note"
@@ -383,7 +383,7 @@ export default function App() {
               <span className="note-id">
                 {activeId}.{activeKind}
               </span>
-              {activeKind === 'pdf' ? (
+              {activeKind !== 'md' ? (
                 <span className="status">extracted text · read-only</span>
               ) : (
                 <span className={`status status-${status}`}>
@@ -396,7 +396,7 @@ export default function App() {
               initialContent={content}
               extraction={extraction}
               onChange={handleChange}
-              readOnly={activeKind === 'pdf'}
+              readOnly={activeKind !== 'md'}
             />
           </>
         ) : (

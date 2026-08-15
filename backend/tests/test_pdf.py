@@ -78,12 +78,12 @@ def test_pdf_is_read_only(client):
     assert "read-only" in res.json()["detail"]
 
 
-def test_pdf_delete_and_reject_non_pdf(client):
+def test_pdf_delete_and_reject_unsupported(client):
     note_id = _upload(client, "Temp.").json()["id"]
     assert client.delete(f"/api/notes/{note_id}").status_code == 204
     assert client.get(f"/api/notes/{note_id}").status_code == 404
 
-    bad = client.post("/api/documents", files={"file": ("x.txt", b"hi", "text/plain")})
+    bad = client.post("/api/documents", files={"file": ("x.exe", b"hi", "application/octet-stream")})
     assert bad.status_code == 400
 
 
@@ -93,3 +93,78 @@ def test_broken_pdf_rejected_cleanly(client):
     )
     assert res.status_code == 400
     assert all(n["id"] != "bad" for n in client.get("/api/notes").json())
+
+
+def make_docx(paragraphs: list[str]) -> bytes:
+    import io
+    import zipfile
+
+    ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    body = "".join(f"<w:p><w:r><w:t>{p}</w:t></w:r></w:p>" for p in paragraphs)
+    document = f'<?xml version="1.0"?><w:document {ns}><w:body>{body}</w:body></w:document>'
+    content_types = (
+        '<?xml version="1.0"?>'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="xml" ContentType="application/xml"/></Types>'
+    )
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as z:
+        z.writestr("[Content_Types].xml", content_types)
+        z.writestr("word/document.xml", document)
+    return buf.getvalue()
+
+
+def test_html_document_feeds_graph(client):
+    html = (
+        "<html><head><title>x</title><script>var junk = 'Fake Person';</script></head>"
+        "<body><h1>Filing</h1><p>Ada Lovelace founded Acme Corp.</p>"
+        "<p>Acme Corp acquired Widget Inc.</p></body></html>"
+    )
+    res = client.post(
+        "/api/documents", files={"file": ("filing.html", html.encode(), "text/html")}
+    )
+    assert res.status_code == 201 and res.json()["kind"] == "html"
+
+    note = client.get("/api/notes/filing").json()
+    assert note["kind"] == "html"
+    assert "Ada Lovelace founded Acme Corp." in note["content"]
+    assert "junk" not in note["content"]  # scripts stripped
+
+    entities = client.get("/api/notes/filing/entities").json()["entities"]
+    texts = {e["text"] for e in entities}
+    assert "Ada Lovelace" in texts and "Fake Person" not in texts
+
+
+def test_docx_document_feeds_graph(client):
+    data = make_docx(["Meeting Minutes", "Grace Hopper founded Turing Ltd."])
+    res = client.post(
+        "/api/documents",
+        files={
+            "file": (
+                "minutes.docx",
+                data,
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
+        },
+    )
+    assert res.status_code == 201 and res.json()["kind"] == "docx"
+
+    note = client.get("/api/notes/minutes").json()
+    assert "Grace Hopper founded Turing Ltd." in note["content"]
+
+    graph = client.get("/api/graph").json()
+    founded = next(e for e in graph["edges"] if e["predicate"] == "founded_by")
+    assert founded["evidence"][0]["note"] == "minutes"
+
+
+def test_txt_document_and_unsupported_type(client):
+    res = client.post(
+        "/api/documents", files={"file": ("log.txt", b"Alan Turing met Ada Lovelace.", "text/plain")}
+    )
+    assert res.status_code == 201 and res.json()["kind"] == "txt"
+    entities = client.get("/api/notes/log/entities").json()["entities"]
+    assert {e["text"] for e in entities} == {"Alan Turing", "Ada Lovelace"}
+
+    bad = client.post("/api/documents", files={"file": ("x.xlsx", b"nope", "application/octet-stream")})
+    assert bad.status_code == 400
+    assert "supported" in bad.json()["detail"]

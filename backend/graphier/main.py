@@ -68,18 +68,19 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
 
     @app.post("/api/documents", status_code=201)
     async def upload_document(file: UploadFile):
-        if not (file.filename or "").lower().endswith(".pdf"):
-            raise HTTPException(400, "only PDF documents are supported")
         data = await file.read()
         if len(data) > 20 * 1024 * 1024:
-            raise HTTPException(413, "PDF larger than 20 MB")
-        note_id = vault.save_pdf(file.filename or "document.pdf", data)
+            raise HTTPException(413, "document larger than 20 MB")
         try:
-            vault.read(note_id)  # verify the text layer is extractable
+            note_id = vault.save_document(file.filename or "document", data)
+        except VaultError as exc:
+            raise HTTPException(400, str(exc))
+        try:
+            vault.read(note_id)  # verify text is extractable
         except VaultError as exc:
             vault.delete(note_id)
             raise HTTPException(400, str(exc))
-        return {"id": note_id}
+        return {"id": note_id, "kind": vault.kind_of(note_id)}
 
     @app.put("/api/notes/{note_id}")
     def update_note(note_id: str, body: NoteUpdate):

@@ -3,7 +3,7 @@ export interface NoteMeta {
   title: string
   modified: number
   size: number
-  kind: 'md' | 'pdf'
+  kind: string
 }
 
 export interface Entity {
@@ -167,7 +167,7 @@ export const api = {
     }).then((r) => json<{ id: string }>(r)),
   readNote: (id: string) =>
     fetch(`/api/notes/${id}`).then((r) =>
-      json<{ id: string; content: string; kind: 'md' | 'pdf' }>(r),
+      json<{ id: string; content: string; kind: string }>(r),
     ),
   uploadDocument: (file: File) => {
     const form = new FormData()
