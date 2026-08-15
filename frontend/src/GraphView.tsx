@@ -5,15 +5,7 @@ import forceAtlas2 from 'graphology-layout-forceatlas2'
 import Sigma from 'sigma'
 import { api } from './api'
 import type { FullGraph, GraphEdge, GraphNode } from './api'
-
-const LABEL_COLOR_VARS: Record<string, string> = {
-  PERSON: '--c-person',
-  ORG: '--c-org',
-  GPE: '--c-gpe',
-  DATE: '--c-date',
-  CONCEPT: '--c-concept',
-  NOTE: '--c-wikilink',
-}
+import { labelColor } from './labels'
 
 export interface Selection {
   kind: 'node' | 'edge'
@@ -25,9 +17,10 @@ export interface Selection {
 interface GraphViewProps {
   onOpenNote: (id: string) => void
   onSelect: (selection: Selection | null) => void
+  at?: string
 }
 
-export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
+export function GraphView({ onOpenNote, onSelect, at }: GraphViewProps) {
   const container = useRef<HTMLDivElement>(null)
   const [empty, setEmpty] = useState(false)
 
@@ -35,16 +28,16 @@ export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
     if (!container.current) return
     let renderer: Sigma | null = null
     let cancelled = false
+    setEmpty(false)
 
-    api.fullGraph().then((data: FullGraph) => {
+    api.fullGraph(at).then((data: FullGraph) => {
       if (cancelled || !container.current) return
       if (data.nodes.length === 0) {
         setEmpty(true)
         return
       }
       const styles = getComputedStyle(document.documentElement)
-      const colorOf = (label: string) =>
-        styles.getPropertyValue(LABEL_COLOR_VARS[label] ?? '--ink-soft').trim() || '#888'
+      const colorOf = labelColor
 
       const graph = new Graph({ multi: true })
       const byId = new Map(data.nodes.map((n) => [n.id, n]))
@@ -99,9 +92,9 @@ export function GraphView({ onOpenNote, onSelect }: GraphViewProps) {
       cancelled = true
       renderer?.kill()
     }
-    // Rebuild only on mount; the view is closed and reopened to refresh.
+    // Rebuild on mount and when the snapshot changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [at])
 
   if (empty) {
     return (

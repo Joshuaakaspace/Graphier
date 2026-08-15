@@ -19,6 +19,13 @@ from .vault import Vault
 # ```datalog blocks in any note program the vault's reasoner.
 _RULE_BLOCK_RE = re.compile(r"```datalog\s*\n(.*?)```", re.DOTALL)
 
+# ```domain blocks declare custom entity types: "LABEL: regex" per line.
+_DOMAIN_BLOCK_RE = re.compile(r"```domain\s*\n(.*?)```", re.DOTALL)
+_DOMAIN_LINE_RE = re.compile(r"^([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.+)$")
+
+# The built-in vocabulary; domain types may not shadow these.
+_BUILTIN_LABELS = {"PERSON", "ORG", "GPE", "DATE", "NOTE", "CONCEPT"}
+
 _MAX_EVIDENCE = 12  # per node/edge, keeps payloads bounded
 
 
@@ -55,15 +62,42 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
     note_titles: dict[str, str] = {}
     custom_rules: list[dict[str, str]] = []
 
+    # First pass: read everything, collect vault-wide rules and domain types.
+    contents: dict[str, str] = {}
+    domain_types: list[dict[str, str]] = []
+    domain_relations: list[dict[str, str]] = []
+    domain_patterns: dict[str, str] = {}
     for meta in vault.list_notes():
         note_titles[meta.id] = meta.title
         content = vault.read(meta.id)
+        contents[meta.id] = content
         for block in _RULE_BLOCK_RE.findall(content):
             for line in block.splitlines():
                 line = line.strip()
                 if line and ":-" in line and not line.startswith("%"):
                     custom_rules.append({"rule": line, "note": meta.id})
-        result = extractor.extract(content)
+        for block in _DOMAIN_BLOCK_RE.findall(content):
+            for line in block.splitlines():
+                match = _DOMAIN_LINE_RE.match(line.strip())
+                if not match:
+                    continue
+                label = match.group(1).upper()
+                value = match.group(2).strip()
+                if "{" in value:
+                    # A relation template: '{TICKET} blocks {PROJECT}'
+                    domain_relations.append(
+                        {"label": label, "template": value, "note": meta.id}
+                    )
+                    continue
+                if label in _BUILTIN_LABELS or label in domain_patterns:
+                    continue
+                domain_patterns[label] = value
+                domain_types.append({"label": label, "pattern": value, "note": meta.id})
+
+    templates = [(r["label"], r["template"]) for r in domain_relations]
+    for meta in vault.list_notes():
+        content = contents[meta.id]
+        result = extractor.extract(content, domain_patterns, templates)
 
         for ent in result["entities"]:
             key = _node_key(ent["text"], ent["label"])
@@ -134,6 +168,8 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
         "edges": list(edges.values()),
         "note_titles": note_titles,
         "custom_rules": custom_rules,
+        "domain_types": domain_types,
+        "domain_relations": domain_relations,
         "summary": {
             "notes": len(note_titles),
             "nodes": len(nodes),
@@ -141,6 +177,25 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
             "by_label": dict(by_label),
         },
     }
+
+
+def collect_domain(vault: Vault) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """Vault-wide domain types + relation templates without extraction."""
+    patterns: dict[str, str] = {}
+    templates: list[tuple[str, str]] = []
+    for meta in vault.list_notes():
+        for block in _DOMAIN_BLOCK_RE.findall(vault.read(meta.id)):
+            for line in block.splitlines():
+                match = _DOMAIN_LINE_RE.match(line.strip())
+                if not match:
+                    continue
+                label = match.group(1).upper()
+                value = match.group(2).strip()
+                if "{" in value:
+                    templates.append((label, value))
+                elif label not in _BUILTIN_LABELS and label not in patterns:
+                    patterns[label] = value
+    return patterns, templates
 
 
 def entity_page(graph: dict[str, Any], node_id: str) -> dict[str, Any] | None:

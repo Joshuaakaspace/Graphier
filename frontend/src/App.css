@@ -508,3 +508,98 @@
 .btn-accept:hover {
   background: var(--accent-soft);
 }
+
+/* ---- search ---- */
+
+.search-box {
+  margin: 0 14px 10px;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg-raised);
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.search-box:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.entity-hits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 2px 8px 8px;
+}
+
+.entity-chip {
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--ink);
+  border-radius: 12px;
+  font-size: 12px;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+
+.chip-PERSON { border-color: var(--c-person); }
+.chip-ORG { border-color: var(--c-org); }
+.chip-GPE { border-color: var(--c-gpe); }
+.chip-CONCEPT { border-color: var(--c-concept); }
+
+.entity-chip:hover {
+  background: var(--accent-soft);
+}
+
+.search-hit {
+  align-items: flex-start;
+}
+
+.snippet {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+/* ---- timeline ---- */
+
+.timeline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline select {
+  border: 1px solid var(--line);
+  background: var(--bg-raised);
+  color: var(--ink);
+  border-radius: 5px;
+  font-size: 12px;
+  padding: 3px 6px;
+  max-width: 220px;
+}
+
+/* ---- live queries ---- */
+
+.dot-QUERY {
+  background: var(--c-gpe);
+}
+
+.live-query {
+  margin-bottom: 10px;
+}
+
+.live-query code {
+  display: block;
+  font: 11.5px ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--ink-soft);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 7px;
+  margin-bottom: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+}

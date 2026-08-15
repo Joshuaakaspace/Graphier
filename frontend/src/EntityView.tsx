@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from './api'
 import type { EntityPage } from './api'
+import { labelColor } from './labels'
 
 interface EntityViewProps {
   entityId: string
@@ -26,7 +27,7 @@ export function EntityView({ entityId, onOpenNote, onOpenEntity }: EntityViewPro
   return (
     <div className="entity-page">
       <header className="entity-head">
-        <span className={`dot dot-${node.label}`} />
+        <span className="dot" style={{ background: labelColor(node.label) }} />
         <h1>{node.text}</h1>
         <span className="entity-meta">
           {node.label} · {node.count} mention{node.count === 1 ? '' : 's'} ·{' '}

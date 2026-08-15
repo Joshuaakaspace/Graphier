@@ -34,6 +34,50 @@ aggregation, and a deterministic enrichment layer:
   it, plus the conflicts and inferences it participates in.
 - **One-click linking** — accept a link suggestion and the `[[wiki-link]]` is
   written into your Markdown for you.
+- **Hybrid search** — TF-IDF ranking over note bodies, graph-boosted: a note
+  that *mentions the entity you searched for* outranks one that merely shares
+  vocabulary, and matching entities surface as chips that open their entity
+  pages.
+- **Time travel** — the vault is a git repo. Take a snapshot anytime; the
+  graph view's timeline selector replays the knowledge graph exactly as it
+  was at any snapshot — the past still knows what the present forgot.
+- **Domains: your vault defines its own entity types** — put a
+  ```` ```domain ```` block in any note and declare types as `LABEL: regex`:
+
+  ~~~markdown
+  ```domain
+  PROJECT: \b(?:Phoenix|Icarus) Project\b
+  TICKET: \bENG-\d+\b
+  ```
+  ~~~
+
+  Domain types are extracted across the whole vault with higher confidence
+  than the generic patterns (they win on overlap), get their own colors in
+  the editor, panel, and graph canvas, and flow through everything —
+  entity pages, search chips, inference, PageRank. Built-in labels can't
+  be shadowed; malformed regexes contribute nothing.
+
+  Lines with `{TYPE}` placeholders declare **typed relations**:
+  `BLOCKS: {TICKET} blocks {PROJECT}` turns "ENG-42 blocks the Icarus
+  Project rollout" into a `blocks` edge between the two typed entities —
+  components must appear in order within one sentence, filler words
+  allowed. Template edges carry sentence evidence and feed conflicts and
+  inference like any extracted relation.
+- **Live query notes** — a ```` ```query ```` block renders always-current
+  results in the panel, one query per line:
+
+  ~~~markdown
+  ```query
+  relations blocks
+  entities TICKET
+  ?- empire_builder(P, B)
+  ```
+  ~~~
+
+  `entities LABEL`, `relations predicate`, and `connected Entity Name`
+  query the graph; `?- pred(X, Y)` runs a Datalog query against the
+  vault's facts *and your own rules*. Results update on every save —
+  Dataview, but against a knowledge graph with a reasoner behind it.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 
