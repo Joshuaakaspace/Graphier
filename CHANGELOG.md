@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **MCP server** (`graphier-mcp`): the vault's knowledge graph queryable
+  by Claude Code, Claude Desktop, Cursor, and any MCP client over stdio —
+  nine tools (search, entity dossiers, relations, Datalog, conflicts,
+  timeline, notes), every answer carrying sentence-level provenance.
+- Community infrastructure: CONTRIBUTING, extension guide, roadmap,
+  issue/PR templates, packaging + release workflow.
+
 ## 0.1.0 — first public cut
 
 Everything so far, in merge order:

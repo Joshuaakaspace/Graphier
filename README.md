@@ -216,6 +216,31 @@ be rebuilt from the files at any time. Extraction is deterministic (no LLM,
 no network) — the pattern extractors run on an offset-preserving masked copy
 of each note so spans map exactly onto what you typed.
 
+## Ask your AI about your notes' knowledge
+
+Graphier ships an [MCP](https://modelcontextprotocol.io/) server, so
+Claude Code, Claude Desktop, Cursor — any MCP client — can query the
+knowledge graph instead of doing RAG over raw text:
+
+```json
+{
+  "mcpServers": {
+    "graphier": {
+      "command": "graphier-mcp",
+      "env": { "GRAPHIER_VAULT": "/path/to/your/vault" }
+    }
+  }
+}
+```
+
+Nine tools: `search_vault`, `get_entity` (the full dossier with quoted
+mentions), `get_relations`, `query_datalog` (against your own rules),
+`get_conflicts`, `get_timeline`, `list_entities`, `list_notes`,
+`read_note`. Every answer carries provenance — ask "who founded Acme
+Corp?" and the AI can cite both conflicting sources, sentence and all.
+From a checkout, use `python -m graphier.mcp` with `--app-dir backend`
+semantics (`PYTHONPATH=backend`).
+
 ## Contributing
 
 Small codebase, 47 tests, deliberately hackable — see

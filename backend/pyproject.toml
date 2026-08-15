@@ -31,6 +31,7 @@ dev = ["pytest>=8.0", "httpx>=0.27"]
 
 [project.scripts]
 graphier = "graphier.main:main"
+graphier-mcp = "graphier.mcp:main"
 
 [build-system]
 requires = ["setuptools>=68"]
