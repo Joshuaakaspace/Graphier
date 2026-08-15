@@ -90,7 +90,11 @@ aggregation, and a deterministic enrichment layer:
   whole vault: ISO dates, "March 1948", "12/06/1952", or bare years,
   found in Markdown prose or inside PDFs, Word documents, and HTML pages
   alike. Each event shows the exact sentence, its source (with format
-  badge), and clickable chips for the entities involved.
+  badge), and clickable chips for the entities involved. An **entity
+  lifeline chart** heads the view: each key entity gets a track on a
+  shared year axis with a dot per dated event — hover for the sentence,
+  click a dot to jump to its event, click a name to open the entity
+  page.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 

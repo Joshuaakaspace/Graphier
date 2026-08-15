@@ -774,3 +774,77 @@
 .cast-chip:hover {
   background: var(--accent-soft);
 }
+
+/* ---- lifeline chart ---- */
+
+.lifeline-wrap {
+  position: relative;
+  margin-bottom: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-raised);
+  padding: 10px 8px 2px;
+}
+
+.lifeline-chart {
+  width: 100%;
+  display: block;
+}
+
+.tl-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.tl-tick {
+  fill: var(--ink-soft);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-name {
+  fill: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tl-name:hover {
+  fill: var(--accent);
+  text-decoration: underline;
+}
+
+.tl-life {
+  stroke-width: 2;
+  opacity: 0.35;
+}
+
+.tl-dot {
+  stroke: var(--bg-raised);
+  stroke-width: 2;
+}
+
+.tl-hit {
+  cursor: pointer;
+}
+
+.tl-tooltip {
+  position: absolute;
+  transform: translateX(-50%);
+  min-width: 200px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--ink);
+  max-width: 280px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.tl-tooltip-sentence {
+  color: var(--ink-soft);
+  margin-top: 2px;
+  line-height: 1.35;
+}
