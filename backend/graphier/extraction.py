@@ -55,24 +55,63 @@ def _mask_for_extraction(text: str) -> str:
     return "".join(chars)
 
 
+class _DomainEntity:
+    """Entity-shaped match from a user-defined domain pattern."""
+
+    def __init__(self, text: str, label: str, start: int, end: int):
+        self.text = text
+        self.label = label
+        self.start_char = start
+        self.end_char = end
+        self.confidence = 0.9  # explicit user pattern beats generic heuristics
+
+
 class ExtractionService:
     def __init__(self, method: str = "pattern"):
         self._ner = NERExtractor(method=method)
         self._relations = RelationExtractor(method=method)
         self._cache: dict[str, dict[str, Any]] = {}
 
-    def extract(self, text: str) -> dict[str, Any]:
-        key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    def extract(
+        self, text: str, domain_patterns: dict[str, str] | None = None
+    ) -> dict[str, Any]:
+        domain_patterns = domain_patterns or {}
+        key = hashlib.sha256(
+            (text + "\x00" + repr(sorted(domain_patterns.items()))).encode("utf-8")
+        ).hexdigest()
         if key in self._cache:
             return self._cache[key]
 
         masked = _mask_for_extraction(text)
+
+        # Domain types first: explicit user patterns win over generic NER.
+        domain_entities: list[_DomainEntity] = []
+        for label, pattern in domain_patterns.items():
+            try:
+                compiled = re.compile(pattern)
+            except re.error:
+                continue  # a bad pattern contributes nothing
+            for m in compiled.finditer(masked):
+                if m.start() < m.end():
+                    domain_entities.append(
+                        _DomainEntity(text[m.start() : m.end()], label, m.start(), m.end())
+                    )
+
         entities = self._ner.extract(masked)
         for e in entities:
             # Some upstream patterns capture trailing punctuation — trim it.
             while e.end_char > e.start_char and text[e.end_char - 1] in ".,;:!?":
                 e.end_char -= 1
             e.text = text[e.start_char : e.end_char]
+        # NER entities overlapping a domain match yield to it.
+        entities = domain_entities + [
+            e
+            for e in entities
+            if not any(
+                d.start_char < e.end_char and e.start_char < d.end_char
+                for d in domain_entities
+            )
+        ]
         # Dedupe overlapping spans, keep the longest match at each position.
         entities = self._dedupe(entities)
         relations = self._relations.extract(masked, entities) if entities else []

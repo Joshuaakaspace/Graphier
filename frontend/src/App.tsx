@@ -11,6 +11,7 @@ import type {
 } from './api'
 import { Editor } from './Editor'
 import { EntityView } from './EntityView'
+import { labelColor } from './labels'
 import { GraphView } from './GraphView'
 import type { Selection } from './GraphView'
 import './App.css'
@@ -340,7 +341,7 @@ export default function App() {
             {selection?.kind === 'node' && selection.node && (
               <>
                 <h3>
-                  <span className={`dot dot-${selection.node.label}`} />
+                  <span className="dot" style={{ background: labelColor(selection.node.label) }} />
                   {selection.node.text}
                 </h3>
                 <p className="selection-meta">
@@ -395,7 +396,7 @@ export default function App() {
         grouped.map(([label, items]) => (
           <section key={label} className="entity-group">
             <h3>
-              <span className={`dot dot-${label}`} />
+              <span className="dot" style={{ background: labelColor(label) }} />
               {LABEL_NAMES[label] ?? label}
               <span className="count">{items.length}</span>
             </h3>

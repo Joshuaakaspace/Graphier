@@ -41,6 +41,21 @@ aggregation, and a deterministic enrichment layer:
 - **Time travel** — the vault is a git repo. Take a snapshot anytime; the
   graph view's timeline selector replays the knowledge graph exactly as it
   was at any snapshot — the past still knows what the present forgot.
+- **Domains: your vault defines its own entity types** — put a
+  ```` ```domain ```` block in any note and declare types as `LABEL: regex`:
+
+  ~~~markdown
+  ```domain
+  PROJECT: \b(?:Phoenix|Icarus) Project\b
+  TICKET: \bENG-\d+\b
+  ```
+  ~~~
+
+  Domain types are extracted across the whole vault with higher confidence
+  than the generic patterns (they win on overlap), get their own colors in
+  the editor, panel, and graph canvas, and flow through everything —
+  entity pages, search chips, inference, PageRank. Built-in labels can't
+  be shadowed; malformed regexes contribute nothing.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 

@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from .enrichment import Enricher, enrich
 from .extraction import ExtractionService
-from .graph import build_graph, entity_page
+from .graph import build_graph, collect_domain_patterns, entity_page
 from .history import HistoryError, VaultHistory, graph_at
 from .search import search as search_vault
 from .vault import NoteNotFound, Vault, VaultError
@@ -87,7 +87,7 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
             raise HTTPException(404, f"note not found: {note_id}")
         except VaultError as exc:
             raise HTTPException(400, str(exc))
-        return extractor.extract(content)
+        return extractor.extract(content, collect_domain_patterns(vault))
 
     @app.get("/api/graph")
     def graph(at: str | None = None):

@@ -5,6 +5,7 @@ import { EditorState, StateEffect, StateField } from '@codemirror/state'
 import { markdown } from '@codemirror/lang-markdown'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import type { Extraction } from './api'
+import { labelColor } from './labels'
 
 const setHighlights = StateEffect.define<DecorationSet>()
 
@@ -24,7 +25,10 @@ function buildDecorations(extraction: Extraction, docLength: number): Decoration
     marks.push(
       Decoration.mark({
         class: `ent ent-${ent.label}`,
-        attributes: { title: `${ent.label} · ${(ent.confidence * 100).toFixed(0)}%` },
+        attributes: {
+          title: `${ent.label} · ${(ent.confidence * 100).toFixed(0)}%`,
+          style: `border-bottom-color: ${labelColor(ent.label)}`,
+        },
       }).range(ent.start, ent.end),
     )
   }

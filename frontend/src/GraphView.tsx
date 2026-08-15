@@ -5,15 +5,7 @@ import forceAtlas2 from 'graphology-layout-forceatlas2'
 import Sigma from 'sigma'
 import { api } from './api'
 import type { FullGraph, GraphEdge, GraphNode } from './api'
-
-const LABEL_COLOR_VARS: Record<string, string> = {
-  PERSON: '--c-person',
-  ORG: '--c-org',
-  GPE: '--c-gpe',
-  DATE: '--c-date',
-  CONCEPT: '--c-concept',
-  NOTE: '--c-wikilink',
-}
+import { labelColor } from './labels'
 
 export interface Selection {
   kind: 'node' | 'edge'
@@ -45,8 +37,7 @@ export function GraphView({ onOpenNote, onSelect, at }: GraphViewProps) {
         return
       }
       const styles = getComputedStyle(document.documentElement)
-      const colorOf = (label: string) =>
-        styles.getPropertyValue(LABEL_COLOR_VARS[label] ?? '--ink-soft').trim() || '#888'
+      const colorOf = labelColor
 
       const graph = new Graph({ multi: true })
       const byId = new Map(data.nodes.map((n) => [n.id, n]))
