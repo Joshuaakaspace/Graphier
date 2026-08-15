@@ -24,7 +24,8 @@ jobs:
           git config --global user.email ci@graphier.local
           git config --global user.name CI
       - name: Test
-        run: python -m pytest backend/tests/ -q
+        working-directory: backend
+        run: python -m pytest tests/ -q
         env:
           SEMANTICA_DISABLE_PROGRESS: "1"
 
