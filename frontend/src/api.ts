@@ -3,6 +3,7 @@ export interface NoteMeta {
   title: string
   modified: number
   size: number
+  kind: string
 }
 
 export interface Entity {
@@ -165,7 +166,16 @@ export const api = {
       body: JSON.stringify({ title }),
     }).then((r) => json<{ id: string }>(r)),
   readNote: (id: string) =>
-    fetch(`/api/notes/${id}`).then((r) => json<{ id: string; content: string }>(r)),
+    fetch(`/api/notes/${id}`).then((r) =>
+      json<{ id: string; content: string; kind: string }>(r),
+    ),
+  uploadDocument: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return fetch('/api/documents', { method: 'POST', body: form }).then((r) =>
+      json<{ id: string }>(r),
+    )
+  },
   saveNote: (id: string, content: string) =>
     fetch(`/api/notes/${id}`, {
       method: 'PUT',

@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -56,11 +56,31 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
     @app.get("/api/notes/{note_id}")
     def read_note(note_id: str):
         try:
-            return {"id": note_id, "content": vault.read(note_id)}
+            return {
+                "id": note_id,
+                "content": vault.read(note_id),
+                "kind": vault.kind_of(note_id),
+            }
         except NoteNotFound:
             raise HTTPException(404, f"note not found: {note_id}")
         except VaultError as exc:
             raise HTTPException(400, str(exc))
+
+    @app.post("/api/documents", status_code=201)
+    async def upload_document(file: UploadFile):
+        data = await file.read()
+        if len(data) > 20 * 1024 * 1024:
+            raise HTTPException(413, "document larger than 20 MB")
+        try:
+            note_id = vault.save_document(file.filename or "document", data)
+        except VaultError as exc:
+            raise HTTPException(400, str(exc))
+        try:
+            vault.read(note_id)  # verify text is extractable
+        except VaultError as exc:
+            vault.delete(note_id)
+            raise HTTPException(400, str(exc))
+        return {"id": note_id, "kind": vault.kind_of(note_id)}
 
     @app.put("/api/notes/{note_id}")
     def update_note(note_id: str, body: NoteUpdate):
