@@ -56,6 +56,28 @@ aggregation, and a deterministic enrichment layer:
   the editor, panel, and graph canvas, and flow through everything —
   entity pages, search chips, inference, PageRank. Built-in labels can't
   be shadowed; malformed regexes contribute nothing.
+
+  Lines with `{TYPE}` placeholders declare **typed relations**:
+  `BLOCKS: {TICKET} blocks {PROJECT}` turns "ENG-42 blocks the Icarus
+  Project rollout" into a `blocks` edge between the two typed entities —
+  components must appear in order within one sentence, filler words
+  allowed. Template edges carry sentence evidence and feed conflicts and
+  inference like any extracted relation.
+- **Live query notes** — a ```` ```query ```` block renders always-current
+  results in the panel, one query per line:
+
+  ~~~markdown
+  ```query
+  relations blocks
+  entities TICKET
+  ?- empire_builder(P, B)
+  ```
+  ~~~
+
+  `entities LABEL`, `relations predicate`, and `connected Entity Name`
+  query the graph; `?- pred(X, Y)` runs a Datalog query against the
+  vault's facts *and your own rules*. Results update on every save —
+  Dataview, but against a knowledge graph with a reasoner behind it.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 

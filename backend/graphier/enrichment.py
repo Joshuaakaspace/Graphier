@@ -118,6 +118,7 @@ class Enricher:
             custom_heads.append((head.group(1), arity, entry))
 
         reasoner.derive_all()
+        self._reasoner = reasoner  # reused by datalog_query
 
         results: list[dict[str, Any]] = []
         seen: set[frozenset] = set()
@@ -189,6 +190,18 @@ class Enricher:
             )
 
         return results[:limit]
+
+    # ---- ad-hoc datalog queries ----
+
+    def datalog_query(self, pattern: str) -> list[dict[str, str]]:
+        """Run a `?- pred(X, Y)` style query against the vault's facts and
+        rules (built-in + user-defined), returning display-named bindings."""
+        if not hasattr(self, "_reasoner"):
+            self.inferred_connections()
+        rows = []
+        for binding in self._reasoner.query(pattern):
+            rows.append({var: self.names.get(val, val) for var, val in binding.items()})
+        return rows
 
     # ---- link suggestions ----
 

@@ -145,6 +145,12 @@ export interface Snapshot {
   message: string
 }
 
+export interface QueryResult {
+  kind: 'entities' | 'relations' | 'connected' | 'datalog'
+  columns?: string[]
+  rows: Record<string, unknown>[]
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
@@ -177,6 +183,8 @@ export const api = {
     ),
   search: (q: string) =>
     fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => json<SearchResponse>(r)),
+  query: (q: string) =>
+    fetch(`/api/query?q=${encodeURIComponent(q)}`).then((r) => json<QueryResult>(r)),
   history: () => fetch('/api/history').then((r) => json<{ snapshots: Snapshot[] }>(r)),
   snapshot: (message: string) =>
     fetch('/api/history/snapshot', {

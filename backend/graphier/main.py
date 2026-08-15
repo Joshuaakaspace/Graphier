@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from .enrichment import Enricher, enrich
 from .extraction import ExtractionService
-from .graph import build_graph, collect_domain_patterns, entity_page
+from .graph import build_graph, collect_domain, entity_page
 from .history import HistoryError, VaultHistory, graph_at
 from .search import search as search_vault
 from .vault import NoteNotFound, Vault, VaultError
@@ -87,7 +87,8 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
             raise HTTPException(404, f"note not found: {note_id}")
         except VaultError as exc:
             raise HTTPException(400, str(exc))
-        return extractor.extract(content, collect_domain_patterns(vault))
+        patterns, templates = collect_domain(vault)
+        return extractor.extract(content, patterns, templates)
 
     @app.get("/api/graph")
     def graph(at: str | None = None):
@@ -118,6 +119,67 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
     @app.get("/api/enrichment")
     def enrichment():
         return enrich(build_graph(vault, extractor))
+
+    @app.get("/api/query")
+    def run_query(q: str):
+        q = q.strip()
+        if not q:
+            raise HTTPException(400, "empty query")
+        graph_data = build_graph(vault, extractor)
+        display = {n["id"]: n["text"] for n in graph_data["nodes"]}
+
+        if q.startswith("?-"):
+            pattern = q[2:].strip()
+            try:
+                rows = Enricher(graph_data).datalog_query(pattern)
+            except Exception as exc:
+                raise HTTPException(400, f"bad datalog query: {exc}")
+            return {"kind": "datalog", "columns": list(rows[0]) if rows else [], "rows": rows}
+
+        parts = q.split(None, 1)
+        command, arg = parts[0].lower(), (parts[1].strip() if len(parts) > 1 else "")
+        if command == "entities" and arg:
+            hits = [
+                {"id": n["id"], "text": n["text"], "label": n["label"], "count": n["count"]}
+                for n in graph_data["nodes"]
+                if n["label"] == arg.upper()
+            ]
+            return {"kind": "entities", "rows": hits}
+        if command == "relations" and arg:
+            hits = [
+                {
+                    "source": display.get(e["source"], e["source"]),
+                    "predicate": e["predicate"],
+                    "target": display.get(e["target"], e["target"]),
+                    "notes": e["notes"],
+                }
+                for e in graph_data["edges"]
+                if e["predicate"] == arg.lower().replace(" ", "_")
+            ]
+            return {"kind": "relations", "rows": hits}
+        if command == "connected" and arg:
+            wanted = arg.strip().lower()
+            node = next(
+                (n for n in graph_data["nodes"] if n["text"].strip().lower() == wanted), None
+            )
+            if node is None:
+                return {"kind": "connected", "rows": []}
+            neighbors = []
+            for e in graph_data["edges"]:
+                if node["id"] == e["source"]:
+                    neighbors.append(
+                        {"text": display.get(e["target"]), "predicate": e["predicate"]}
+                    )
+                elif node["id"] == e["target"]:
+                    neighbors.append(
+                        {"text": display.get(e["source"]), "predicate": e["predicate"]}
+                    )
+            return {"kind": "connected", "rows": neighbors}
+        raise HTTPException(
+            400,
+            "unknown query — use 'entities LABEL', 'relations predicate', "
+            "'connected Entity Name', or '?- pred(X, Y)'",
+        )
 
     @app.get("/api/entity")
     def entity(id: str):

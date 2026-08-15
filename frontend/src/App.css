@@ -580,3 +580,26 @@
   padding: 3px 6px;
   max-width: 220px;
 }
+
+/* ---- live queries ---- */
+
+.dot-QUERY {
+  background: var(--c-gpe);
+}
+
+.live-query {
+  margin-bottom: 10px;
+}
+
+.live-query code {
+  display: block;
+  font: 11.5px ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--ink-soft);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 3px 7px;
+  margin-bottom: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+}

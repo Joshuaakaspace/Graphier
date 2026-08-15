@@ -55,6 +55,71 @@ def _mask_for_extraction(text: str) -> str:
     return "".join(chars)
 
 
+_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z][A-Za-z0-9_-]*)\}")
+
+
+def _match_relation_templates(
+    masked: str, entities: list, templates: list[tuple[str, str]]
+) -> list[dict[str, Any]]:
+    """Match domain relation templates like '{TICKET} blocks {PROJECT}'.
+
+    Placeholders match any entity of that type already extracted from this
+    text; literal words in between match loosely across whitespace. The
+    first placeholder is the subject, the second the object.
+    """
+    by_label: dict[str, dict[str, Any]] = {}
+    for e in entities:
+        by_label.setdefault(e.label, {})[e.text] = e
+
+    found: list[dict[str, Any]] = []
+    for predicate, template in templates:
+        parts = _PLACEHOLDER_RE.split(template)
+        # Exactly two placeholders: [prefix, TYPE1, middle, TYPE2, suffix]
+        if len(parts) != 5:
+            continue
+        subj_pool = by_label.get(parts[1].upper())
+        obj_pool = by_label.get(parts[3].upper())
+        if not subj_pool or not obj_pool:
+            continue
+
+        def literal(fragment: str) -> str:
+            words = fragment.split()
+            return (r"\s+".join(re.escape(w) for w in words)) if words else ""
+
+        # Components must appear in order within one sentence (masked
+        # newlines are '.'), with filler words allowed between them:
+        # '{TICKET} blocks {PROJECT}' matches 'ENG-42 blocks the Icarus
+        # Project rollout'.
+        gap = r"[^.]*?"
+        middle = literal(parts[2])
+        pattern = (
+            (literal(parts[0]) + gap if parts[0].strip() else "")
+            + f"(?P<subj>{'|'.join(re.escape(t) for t in subj_pool)})"
+            + (gap + middle + gap if middle else gap)
+            + f"(?P<obj>{'|'.join(re.escape(t) for t in obj_pool)})"
+            + (gap + literal(parts[4]) if parts[4].strip() else "")
+        )
+        try:
+            compiled = re.compile(pattern)
+        except re.error:
+            continue
+        for m in compiled.finditer(masked):
+            subj = subj_pool[m.group("subj")]
+            obj = obj_pool[m.group("obj")]
+            found.append(
+                {
+                    "subject": subj.text,
+                    "subject_label": subj.label,
+                    "predicate": predicate.lower(),
+                    "object": obj.text,
+                    "object_label": obj.label,
+                    "confidence": 0.9,
+                    "start": m.start(),
+                }
+            )
+    return found
+
+
 class _DomainEntity:
     """Entity-shaped match from a user-defined domain pattern."""
 
@@ -73,11 +138,21 @@ class ExtractionService:
         self._cache: dict[str, dict[str, Any]] = {}
 
     def extract(
-        self, text: str, domain_patterns: dict[str, str] | None = None
+        self,
+        text: str,
+        domain_patterns: dict[str, str] | None = None,
+        relation_templates: list[tuple[str, str]] | None = None,
     ) -> dict[str, Any]:
         domain_patterns = domain_patterns or {}
+        relation_templates = relation_templates or []
         key = hashlib.sha256(
-            (text + "\x00" + repr(sorted(domain_patterns.items()))).encode("utf-8")
+            (
+                text
+                + "\x00"
+                + repr(sorted(domain_patterns.items()))
+                + "\x00"
+                + repr(sorted(relation_templates))
+            ).encode("utf-8")
         ).hexdigest()
         if key in self._cache:
             return self._cache[key]
@@ -115,6 +190,7 @@ class ExtractionService:
         # Dedupe overlapping spans, keep the longest match at each position.
         entities = self._dedupe(entities)
         relations = self._relations.extract(masked, entities) if entities else []
+        custom_relations = _match_relation_templates(masked, entities, relation_templates)
 
         result = {
             "entities": [
@@ -143,7 +219,8 @@ class ExtractionService:
                     "start": min(r.subject.start_char, r.object.start_char),
                 }
                 for r in relations
-            ],
+            ]
+            + custom_relations,
         }
         self._cache[key] = result
         return result

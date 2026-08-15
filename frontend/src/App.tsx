@@ -5,6 +5,7 @@ import type {
   Extraction,
   GraphSummary,
   NoteMeta,
+  QueryResult,
   SearchResponse,
   Snapshot,
   Suggestion,
@@ -17,6 +18,19 @@ import type { Selection } from './GraphView'
 import './App.css'
 
 const nodeKey = (text: string, label: string) => `${label}:${text.trim().toLowerCase()}`
+
+const QUERY_BLOCK_RE = /```query\s*\n([\s\S]*?)```/g
+
+function parseQueries(content: string): string[] {
+  const queries: string[] = []
+  for (const match of content.matchAll(QUERY_BLOCK_RE)) {
+    for (const line of match[1].split('\n')) {
+      const q = line.trim()
+      if (q && !q.startsWith('%')) queries.push(q)
+    }
+  }
+  return queries
+}
 
 const LABEL_NAMES: Record<string, string> = {
   PERSON: 'People',
@@ -43,6 +57,7 @@ export default function App() {
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null)
   const [snapshots, setSnapshots] = useState<Snapshot[]>([])
   const [atSnapshot, setAtSnapshot] = useState<string>('')
+  const [queryResults, setQueryResults] = useState<Record<string, QueryResult | null>>({})
   const saveTimer = useRef<number | undefined>(undefined)
   const searchTimer = useRef<number | undefined>(undefined)
 
@@ -170,7 +185,31 @@ export default function App() {
     [activeId, refreshNotes, refreshSummary],
   )
 
+  // Live queries: ```query blocks in the open note re-run after each save.
+  useEffect(() => {
+    const queries = parseQueries(content)
+    if (queries.length === 0) {
+      setQueryResults({})
+      return
+    }
+    let cancelled = false
+    Promise.all(
+      queries.map((q) =>
+        api
+          .query(q)
+          .then((res) => [q, res] as const)
+          .catch(() => [q, null] as const),
+      ),
+    ).then((pairs) => {
+      if (!cancelled) setQueryResults(Object.fromEntries(pairs))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [content, extraction])
+
   const grouped = groupEntities(extraction)
+  const liveQueries = Object.entries(queryResults)
 
   return (
     <div className="app">
@@ -461,6 +500,73 @@ export default function App() {
                 </li>
               ))}
             </ul>
+          </section>
+        )}
+
+        {view === 'editor' && liveQueries.length > 0 && (
+          <section className="entity-group">
+            <h3>
+              <span className="dot dot-QUERY" />
+              Live queries
+              <span className="count">{liveQueries.length}</span>
+            </h3>
+            {liveQueries.map(([q, res]) => (
+              <div className="live-query" key={q}>
+                <code>{q}</code>
+                {res === null && <p className="empty">query error</p>}
+                {res && res.rows.length === 0 && <p className="empty">no results</p>}
+                {res && res.kind === 'entities' && (
+                  <ul>
+                    {res.rows.map((row, i) => (
+                      <li key={i}>
+                        <button
+                          className="link-btn"
+                          onClick={() => openEntity(String(row.id))}
+                        >
+                          {String(row.text)}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {res && res.kind === 'relations' && (
+                  <ul>
+                    {res.rows.map((row, i) => (
+                      <li key={i}>
+                        <span className="rel-entity">{String(row.source)}</span>
+                        <span className="rel-pred"> {String(row.predicate).replace(/_/g, ' ')} </span>
+                        <span className="rel-entity">{String(row.target)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {res && res.kind === 'connected' && (
+                  <ul>
+                    {res.rows.map((row, i) => (
+                      <li key={i}>
+                        <span className="rel-entity">{String(row.text)}</span>
+                        <span className="rel-pred"> {String(row.predicate).replace(/_/g, ' ')}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {res && res.kind === 'datalog' && (
+                  <ul>
+                    {res.rows.map((row, i) => (
+                      <li key={i}>
+                        {Object.entries(row).map(([k, v], j) => (
+                          <span key={k}>
+                            {j > 0 && <span className="rel-pred"> · </span>}
+                            <span className="suggest-notes">{k} = </span>
+                            <span className="rel-entity">{String(v)}</span>
+                          </span>
+                        ))}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
           </section>
         )}
 

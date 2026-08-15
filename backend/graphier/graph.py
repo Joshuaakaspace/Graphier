@@ -65,6 +65,7 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
     # First pass: read everything, collect vault-wide rules and domain types.
     contents: dict[str, str] = {}
     domain_types: list[dict[str, str]] = []
+    domain_relations: list[dict[str, str]] = []
     domain_patterns: dict[str, str] = {}
     for meta in vault.list_notes():
         note_titles[meta.id] = meta.title
@@ -81,16 +82,22 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
                 if not match:
                     continue
                 label = match.group(1).upper()
+                value = match.group(2).strip()
+                if "{" in value:
+                    # A relation template: '{TICKET} blocks {PROJECT}'
+                    domain_relations.append(
+                        {"label": label, "template": value, "note": meta.id}
+                    )
+                    continue
                 if label in _BUILTIN_LABELS or label in domain_patterns:
                     continue
-                domain_patterns[label] = match.group(2).strip()
-                domain_types.append(
-                    {"label": label, "pattern": match.group(2).strip(), "note": meta.id}
-                )
+                domain_patterns[label] = value
+                domain_types.append({"label": label, "pattern": value, "note": meta.id})
 
+    templates = [(r["label"], r["template"]) for r in domain_relations]
     for meta in vault.list_notes():
         content = contents[meta.id]
-        result = extractor.extract(content, domain_patterns)
+        result = extractor.extract(content, domain_patterns, templates)
 
         for ent in result["entities"]:
             key = _node_key(ent["text"], ent["label"])
@@ -162,6 +169,7 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
         "note_titles": note_titles,
         "custom_rules": custom_rules,
         "domain_types": domain_types,
+        "domain_relations": domain_relations,
         "summary": {
             "notes": len(note_titles),
             "nodes": len(nodes),
@@ -171,18 +179,23 @@ def build_graph(vault: Vault, extractor: ExtractionService) -> dict[str, Any]:
     }
 
 
-def collect_domain_patterns(vault: Vault) -> dict[str, str]:
-    """Vault-wide domain types without running extraction (cheap scan)."""
+def collect_domain(vault: Vault) -> tuple[dict[str, str], list[tuple[str, str]]]:
+    """Vault-wide domain types + relation templates without extraction."""
     patterns: dict[str, str] = {}
+    templates: list[tuple[str, str]] = []
     for meta in vault.list_notes():
         for block in _DOMAIN_BLOCK_RE.findall(vault.read(meta.id)):
             for line in block.splitlines():
                 match = _DOMAIN_LINE_RE.match(line.strip())
-                if match:
-                    label = match.group(1).upper()
-                    if label not in _BUILTIN_LABELS and label not in patterns:
-                        patterns[label] = match.group(2).strip()
-    return patterns
+                if not match:
+                    continue
+                label = match.group(1).upper()
+                value = match.group(2).strip()
+                if "{" in value:
+                    templates.append((label, value))
+                elif label not in _BUILTIN_LABELS and label not in patterns:
+                    patterns[label] = value
+    return patterns, templates
 
 
 def entity_page(graph: dict[str, Any], node_id: str) -> dict[str, Any] | None:
