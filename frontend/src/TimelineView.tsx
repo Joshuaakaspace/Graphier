@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from './api'
 import type { TimelineEvent } from './api'
 import { labelColor } from './labels'
+import { LifelineChart } from './LifelineChart'
 
 interface TimelineViewProps {
   onOpenNote: (id: string) => void
@@ -28,13 +29,18 @@ export function TimelineView({ onOpenNote, onOpenEntity }: TimelineViewProps) {
 
   let lastYear: number | null = null
 
+  const jumpTo = (index: number) => {
+    document.getElementById(`tl-event-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+
   return (
     <div className="timeline-view">
+      <LifelineChart events={events} onOpenEntity={onOpenEntity} onJumpTo={jumpTo} />
       {events.map((event, i) => {
         const yearHeader = event.year !== lastYear
         lastYear = event.year
         return (
-          <div key={i}>
+          <div key={i} id={`tl-event-${i}`}>
             {yearHeader && <h2 className="timeline-year">{event.year}</h2>}
             <div className="timeline-event">
               <span className="timeline-date">{event.date}</span>
