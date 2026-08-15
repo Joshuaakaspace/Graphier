@@ -1,6 +1,13 @@
 # Graphier
 
-An Obsidian-like knowledge workspace where the graph builds itself.
+**An Obsidian-like knowledge workspace where the graph builds itself — no
+LLM, no cloud, and every claim can quote the sentence it came from.**
+
+[![CI](https://github.com/Joshuaakaspace/Graphier/actions/workflows/ci.yml/badge.svg)](https://github.com/Joshuaakaspace/Graphier/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB.svg)](https://www.python.org/)
+
+![Graphier demo](docs/demo.gif)
 
 You write plain Markdown notes (or drop in PDFs, Word documents, and web
 pages); a deterministic extraction pipeline turns them into a typed
@@ -146,7 +153,18 @@ two facts stated in your own notes, provenance intact either way.
 
 ## Run it
 
-Backend (Python 3.10+):
+**Docker (one command, demo content included):**
+
+```bash
+docker build -t graphier . && docker run -p 8000:8000 -e GRAPHIER_DEMO=1 \
+  -v graphier-vault:/vault graphier
+```
+
+Open http://127.0.0.1:8000 — a seeded demo vault shows extraction, domains,
+rules, queries, conflicts, and the timeline working out of the box. Mount a
+host folder instead (`-v ./vault:/vault`) to use your own notes.
+
+**From source** — backend (Python 3.10+):
 
 ```bash
 python3 -m venv .venv
@@ -171,8 +189,10 @@ GRAPHIER_VAULT=./vault .venv/bin/python -m uvicorn graphier.main:create_app \
     --factory --app-dir backend --port 8000
 ```
 
-Open http://127.0.0.1:8000 — create a note and start typing. For frontend
-development, `npm run dev` proxies `/api` to the backend on port 8000.
+Open http://127.0.0.1:8000 — create a note and start typing (append
+`--demo` or set `GRAPHIER_DEMO=1` to seed the demo vault into an empty
+vault). For frontend development, `npm run dev` proxies `/api` to the
+backend on port 8000.
 
 ## Tests
 
