@@ -14,6 +14,7 @@ import { Editor } from './Editor'
 import { EntityView } from './EntityView'
 import { labelColor } from './labels'
 import { GraphView } from './GraphView'
+import { TimelineView } from './TimelineView'
 import type { Selection } from './GraphView'
 import './App.css'
 
@@ -51,7 +52,7 @@ export default function App() {
   const [enrichment, setEnrichment] = useState<Enrichment | null>(null)
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
   const [status, setStatus] = useState<'saved' | 'saving' | 'extracting'>('saved')
-  const [view, setView] = useState<'editor' | 'graph' | 'entity'>('editor')
+  const [view, setView] = useState<'editor' | 'graph' | 'timeline' | 'entity'>('editor')
   const [entityId, setEntityId] = useState<string | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [query, setQuery] = useState('')
@@ -266,6 +267,12 @@ export default function App() {
           >
             Graph
           </button>
+          <button
+            className={view === 'timeline' ? 'active' : ''}
+            onClick={() => setView('timeline')}
+          >
+            Timeline
+          </button>
         </div>
         <input
           className="search-box"
@@ -343,6 +350,14 @@ export default function App() {
               <span className="note-id">entity</span>
             </div>
             <EntityView entityId={entityId} onOpenNote={openNote} onOpenEntity={openEntity} />
+          </>
+        ) : view === 'timeline' ? (
+          <>
+            <div className="editor-head">
+              <span className="note-id">chronology</span>
+              <span className="status">every dated fact across notes and documents</span>
+            </div>
+            <TimelineView onOpenNote={openNote} onOpenEntity={openEntity} />
           </>
         ) : view === 'graph' ? (
           <>
