@@ -603,3 +603,40 @@
   overflow-x: auto;
   white-space: nowrap;
 }
+
+/* ---- pdf sources ---- */
+
+.head-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-upload {
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-upload:hover {
+  background: var(--accent-soft);
+}
+
+.btn-upload input {
+  display: none;
+}
+
+.pdf-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--c-person);
+  border: 1px solid var(--c-person);
+  border-radius: 3px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}

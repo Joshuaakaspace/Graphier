@@ -44,6 +44,7 @@ const LABEL_NAMES: Record<string, string> = {
 export default function App() {
   const [notes, setNotes] = useState<NoteMeta[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [activeKind, setActiveKind] = useState<'md' | 'pdf'>('md')
   const [content, setContent] = useState<string>('')
   const [extraction, setExtraction] = useState<Extraction | null>(null)
   const [summary, setSummary] = useState<GraphSummary | null>(null)
@@ -87,6 +88,7 @@ export default function App() {
       setView('editor')
       setSelection(null)
       setActiveId(id)
+      setActiveKind(note.kind ?? 'md')
       setContent(note.content)
       setExtraction(null)
       setSuggestions([])
@@ -132,6 +134,20 @@ export default function App() {
       })
     },
     [activeId, openNote],
+  )
+
+  const uploadPdf = useCallback(
+    (file: File) => {
+      api
+        .uploadDocument(file)
+        .then(({ id }) => {
+          refreshNotes()
+          refreshSummary()
+          openNote(id)
+        })
+        .catch(() => window.alert('Could not read that PDF (no text layer?).'))
+    },
+    [openNote, refreshNotes, refreshSummary],
   )
 
   const handleChange = useCallback(
@@ -216,9 +232,23 @@ export default function App() {
       <aside className="sidebar">
         <header className="sidebar-head">
           <h1>Graphier</h1>
-          <button className="btn-new" onClick={createNote}>
-            + Note
-          </button>
+          <span className="head-actions">
+            <label className="btn-upload" title="Add a PDF to the vault">
+              + PDF
+              <input
+                type="file"
+                accept=".pdf,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) uploadPdf(file)
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            <button className="btn-new" onClick={createNote}>
+              + Note
+            </button>
+          </span>
         </header>
         <div className="view-toggle">
           <button
@@ -278,6 +308,7 @@ export default function App() {
               onClick={() => openNote(n.id)}
             >
               <span className="note-title">{n.title}</span>
+              {n.kind === 'pdf' && <span className="pdf-badge">PDF</span>}
               <button
                 className="btn-delete"
                 title="Delete note"
@@ -349,16 +380,23 @@ export default function App() {
         ) : activeId ? (
           <>
             <div className="editor-head">
-              <span className="note-id">{activeId}.md</span>
-              <span className={`status status-${status}`}>
-                {status === 'saved' ? 'Saved' : status === 'saving' ? 'Saving…' : 'Extracting…'}
+              <span className="note-id">
+                {activeId}.{activeKind}
               </span>
+              {activeKind === 'pdf' ? (
+                <span className="status">extracted text · read-only</span>
+              ) : (
+                <span className={`status status-${status}`}>
+                  {status === 'saved' ? 'Saved' : status === 'saving' ? 'Saving…' : 'Extracting…'}
+                </span>
+              )}
             </div>
             <Editor
               noteId={activeId}
               initialContent={content}
               extraction={extraction}
               onChange={handleChange}
+              readOnly={activeKind === 'pdf'}
             />
           </>
         ) : (
@@ -490,13 +528,15 @@ export default function App() {
                       {s.also_in.map((n) => n.title).join(', ')}
                     </span>
                   </span>
-                  <button
-                    className="btn-accept"
-                    title={`Wrap "${s.text}" in a wiki-link`}
-                    onClick={() => acceptSuggestion(s.text)}
-                  >
-                    + Link
-                  </button>
+                  {activeKind === 'md' && (
+                    <button
+                      className="btn-accept"
+                      title={`Wrap "${s.text}" in a wiki-link`}
+                      onClick={() => acceptSuggestion(s.text)}
+                    >
+                      + Link
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>

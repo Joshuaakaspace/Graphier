@@ -50,9 +50,10 @@ interface EditorProps {
   initialContent: string
   extraction: Extraction | null
   onChange: (content: string) => void
+  readOnly?: boolean
 }
 
-export function Editor({ noteId, initialContent, extraction, onChange }: EditorProps) {
+export function Editor({ noteId, initialContent, extraction, onChange, readOnly }: EditorProps) {
   const container = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -68,6 +69,7 @@ export function Editor({ noteId, initialContent, extraction, onChange }: EditorP
         markdown(),
         highlightField,
         EditorView.lineWrapping,
+        EditorState.readOnly.of(!!readOnly),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString())
         }),

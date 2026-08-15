@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -56,11 +56,30 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
     @app.get("/api/notes/{note_id}")
     def read_note(note_id: str):
         try:
-            return {"id": note_id, "content": vault.read(note_id)}
+            return {
+                "id": note_id,
+                "content": vault.read(note_id),
+                "kind": vault.kind_of(note_id),
+            }
         except NoteNotFound:
             raise HTTPException(404, f"note not found: {note_id}")
         except VaultError as exc:
             raise HTTPException(400, str(exc))
+
+    @app.post("/api/documents", status_code=201)
+    async def upload_document(file: UploadFile):
+        if not (file.filename or "").lower().endswith(".pdf"):
+            raise HTTPException(400, "only PDF documents are supported")
+        data = await file.read()
+        if len(data) > 20 * 1024 * 1024:
+            raise HTTPException(413, "PDF larger than 20 MB")
+        note_id = vault.save_pdf(file.filename or "document.pdf", data)
+        try:
+            vault.read(note_id)  # verify the text layer is extractable
+        except VaultError as exc:
+            vault.delete(note_id)
+            raise HTTPException(400, str(exc))
+        return {"id": note_id}
 
     @app.put("/api/notes/{note_id}")
     def update_note(note_id: str, body: NoteUpdate):
