@@ -241,7 +241,10 @@ def create_app(vault_dir: str | None = None, demo: bool | None = None) -> FastAP
             raise HTTPException(400, str(exc))
         return {"suggestions": Enricher(build_graph(vault, extractor)).suggestions_for(note_id)}
 
+    # Repo layout first; installed-wheel layout (bundled static/) second.
     dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    if not dist.is_dir():
+        dist = Path(__file__).resolve().parent / "static"
     if dist.is_dir():
         app.mount("/assets", StaticFiles(directory=dist / "assets"), name="assets")
 
