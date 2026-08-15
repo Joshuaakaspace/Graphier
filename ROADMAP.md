@@ -20,12 +20,10 @@ for the bigger ones so we can agree on shape.
 - [x] Document sources: PDF, HTML, DOCX, TXT
 - [x] Chronology: cross-source timeline + entity lifeline chart
 - [x] Launch kit: LICENSE, demo mode, Docker, CI
+- [x] MCP server — the vault graph queryable by Claude/Cursor/any MCP
+      client, provenance included
 
 ## Next
-
-- [ ] **MCP server** — expose the vault graph to Claude/Cursor/any MCP
-      client: search, entity pages, relations, Datalog queries, provenance.
-      The AI queries your notes' *knowledge*, not raw text.
 - [ ] **Conflict resolution workflow** — accept / mark-superseded buttons on
       conflicts, writing the verdict back as a fact with provenance.
 - [ ] **Vault diff** — "what changed between snapshot A and B": entities
