@@ -86,6 +86,11 @@ aggregation, and a deterministic enrichment layer:
   document, search, suggestions, inference, and queries all treat it as a
   read-only source alongside your Markdown notes. Scanned/image-only PDFs
   need OCR and are rejected with a clear error.
+- **Chronology** — the Timeline view orders every dated fact across the
+  whole vault: ISO dates, "March 1948", "12/06/1952", or bare years,
+  found in Markdown prose or inside PDFs, Word documents, and HTML pages
+  alike. Each event shows the exact sentence, its source (with format
+  badge), and clickable chips for the entities involved.
 - **Your rules program the reasoner** — put a ```` ```datalog ```` block in
   any note and its Horn clauses join the inference engine:
 

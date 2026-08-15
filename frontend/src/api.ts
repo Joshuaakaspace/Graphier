@@ -146,6 +146,17 @@ export interface Snapshot {
   message: string
 }
 
+export interface TimelineEvent {
+  date: string
+  sort_key: number[]
+  year: number
+  sentence: string
+  note: string
+  title: string
+  kind: string
+  entities: { text: string; label: string }[]
+}
+
 export interface QueryResult {
   kind: 'entities' | 'relations' | 'connected' | 'datalog'
   columns?: string[]
@@ -196,6 +207,7 @@ export const api = {
   query: (q: string) =>
     fetch(`/api/query?q=${encodeURIComponent(q)}`).then((r) => json<QueryResult>(r)),
   history: () => fetch('/api/history').then((r) => json<{ snapshots: Snapshot[] }>(r)),
+  timeline: () => fetch('/api/timeline').then((r) => json<{ events: TimelineEvent[] }>(r)),
   snapshot: (message: string) =>
     fetch('/api/history/snapshot', {
       method: 'POST',

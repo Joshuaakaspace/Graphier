@@ -19,6 +19,7 @@ from .extraction import ExtractionService
 from .graph import build_graph, collect_domain, entity_page
 from .history import HistoryError, VaultHistory, graph_at
 from .search import search as search_vault
+from .timeline import build_timeline
 from .vault import NoteNotFound, Vault, VaultError
 
 
@@ -124,6 +125,10 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
         notes = {meta.id: vault.read(meta.id) for meta in vault.list_notes()}
         graph_data = build_graph(vault, extractor)
         return search_vault(q, notes, graph_data["note_titles"], graph_data)
+
+    @app.get("/api/timeline")
+    def timeline():
+        return {"events": build_timeline(vault, extractor)}
 
     @app.get("/api/history")
     def list_history():
