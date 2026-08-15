@@ -216,6 +216,15 @@ be rebuilt from the files at any time. Extraction is deterministic (no LLM,
 no network) — the pattern extractors run on an offset-preserving masked copy
 of each note so spans map exactly onto what you typed.
 
+## Contributing
+
+Small codebase, 47 tests, deliberately hackable — see
+[CONTRIBUTING.md](CONTRIBUTING.md) for the 10-minute setup and
+[ROADMAP.md](ROADMAP.md) for where it's going. Much of Graphier is
+extensible from Markdown alone: [docs/extending.md](docs/extending.md)
+shows how to add entity types, typed relations, inference rules, and live
+dashboards without touching code.
+
 ## Powered by
 
 Graphier's engine room uses three components from

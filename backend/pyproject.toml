@@ -1,8 +1,18 @@
 [project]
-name = "graphier-backend"
+name = "graphier"
 version = "0.1.0"
-description = "Graphier backend: Markdown vault with a Semantica-powered knowledge graph"
+description = "An Obsidian-like knowledge workspace where the graph builds itself — no LLM, no cloud, every claim can quote its source sentence"
+license = { text = "MIT" }
 requires-python = ">=3.10"
+keywords = ["knowledge-graph", "pkm", "note-taking", "local-first", "datalog", "obsidian"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Office/Business :: Groupware",
+    "Topic :: Text Processing :: Markup :: Markdown",
+]
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
@@ -10,6 +20,11 @@ dependencies = [
     "pypdf>=4.0",
     "python-multipart>=0.0.9",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Joshuaakaspace/Graphier"
+Repository = "https://github.com/Joshuaakaspace/Graphier"
+Changelog = "https://github.com/Joshuaakaspace/Graphier/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]
@@ -23,3 +38,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["graphier*"]
+
+[tool.setuptools.package-data]
+graphier = ["static/**/*"]
