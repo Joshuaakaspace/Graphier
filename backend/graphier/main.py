@@ -35,8 +35,14 @@ class SnapshotCreate(BaseModel):
     message: str = "snapshot"
 
 
-def create_app(vault_dir: str | None = None) -> FastAPI:
+def create_app(vault_dir: str | None = None, demo: bool | None = None) -> FastAPI:
     vault = Vault(vault_dir or os.environ.get("GRAPHIER_VAULT", "vault"))
+    if demo is None:
+        demo = os.environ.get("GRAPHIER_DEMO", "") == "1"
+    if demo:
+        from .demo import seed_demo
+
+        seed_demo(vault)
     extractor = ExtractionService()
     history = VaultHistory(vault)
     app = FastAPI(title="Graphier", version="0.1.0")
@@ -250,10 +256,12 @@ def create_app(vault_dir: str | None = None) -> FastAPI:
 
 
 def main() -> None:
+    import sys
+
     import uvicorn
 
     uvicorn.run(
-        create_app(),
+        create_app(demo=True if "--demo" in sys.argv else None),
         host=os.environ.get("GRAPHIER_HOST", "127.0.0.1"),
         port=int(os.environ.get("GRAPHIER_PORT", "8000")),
     )
