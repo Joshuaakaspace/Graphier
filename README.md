@@ -2,18 +2,21 @@
 
 An Obsidian-like knowledge workspace where the graph builds itself.
 
-You write plain Markdown notes; [Semantica](https://github.com/semantica-agi/semantica)'s
-deterministic extraction pipeline turns them into a typed knowledge graph
-underneath — people, organizations, places, and dates light up as you type,
-relations are extracted with confidence scores, and `[[wiki-links]]` become
-explicit edges. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
+You write plain Markdown notes (or drop in PDFs, Word documents, and web
+pages); a deterministic extraction pipeline turns them into a typed
+knowledge graph underneath — people, organizations, places, dates, and
+your own domain types light up as you type, relations are extracted with
+confidence scores, and `[[wiki-links]]` become explicit edges. No LLM, no
+cloud: everything is derived from your files, every claim can quote the
+sentence it came from, and the whole graph rebuilds from the vault at any
+time. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
 
 **Status: Phase 1 + vault intelligence** — vault CRUD, live entity extraction
 with in-editor underlines, entity/relations panel, vault-wide graph
 aggregation, and a deterministic enrichment layer:
 
-- **Inferred connections** — Semantica's Datalog reasoner forward-chains rules
-  over extracted facts: multi-hop chains ("Widget Inc ↔ Ada Lovelace, because
+- **Inferred connections** — a Datalog reasoner forward-chains rules over
+  extracted facts: multi-hop chains ("Widget Inc ↔ Ada Lovelace, because
   Widget Inc was acquired by Acme Corp, which was founded by Ada Lovelace")
   and hidden bridges ("X and Y never appear together, but both appear with
   Z"). Every inference carries its derivation.
@@ -22,8 +25,8 @@ aggregation, and a deterministic enrichment layer:
   Grace Hopper (History) vs Ada Lovelace (Research Log)").
 - **Link suggestions** — entities in the current note that other notes also
   mention.
-- **Central entities** — PageRank over the vault graph via Semantica's
-  CentralityCalculator: what your vault actually revolves around.
+- **Central entities** — PageRank over the vault graph: what your vault
+  actually revolves around.
 - **Graph canvas** — a force-directed Sigma.js view of the whole vault, nodes
   colored by type and sized by mentions. Click a node or edge for its
   provenance (which notes it came from, extraction confidence, manual vs
@@ -160,11 +163,23 @@ cd backend && ../.venv/bin/python -m pytest tests/
 frontend/   React + CodeMirror 6 — editor with entity underlines, entity panel
 backend/    FastAPI — vault CRUD, extraction API, graph aggregation
   graphier/vault.py        Markdown files on disk (the source of truth)
-  graphier/extraction.py   Semantica pattern NER/relations, cached by content hash
+  graphier/extraction.py   pattern NER/relations + domain types, cached by content hash
   graphier/graph.py        vault-wide graph: deduped entities + relation/wiki-link edges
 ```
 
 The vault is always the source of truth: the graph is a derived index and can
 be rebuilt from the files at any time. Extraction is deterministic (no LLM,
-no network) — Semantica's pattern extractors run on an offset-preserving
-masked copy of each note so spans map exactly onto what you typed.
+no network) — the pattern extractors run on an offset-preserving masked copy
+of each note so spans map exactly onto what you typed.
+
+## Powered by
+
+Graphier's engine room uses three components from
+[Semantica](https://github.com/semantica-agi/semantica) (MIT): the pattern
+NER/relation extractors, the `DatalogReasoner` behind inference and
+`?-` queries, and the `CentralityCalculator` behind PageRank insights.
+Everything else — the vault model, markdown masking, domains and relation
+templates, sentence-level evidence, entity pages, time travel, search,
+document ingestion, the timeline, and the UI — is Graphier's own code.
+Semantica's ML extractors are a drop-in upgrade path for higher-quality
+extraction (`pip install semantica` without `--no-deps`).
