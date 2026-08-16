@@ -251,6 +251,28 @@ be rebuilt from the files at any time. Extraction is deterministic (no LLM,
 no network) — the pattern extractors run on an offset-preserving masked copy
 of each note so spans map exactly onto what you typed.
 
+## Use it as a library
+
+`graphier` is also importable, matplotlib-style — same graph, same
+provenance, in a script or notebook, no web app required:
+
+```python
+import graphier
+
+v = graphier.open("~/notes")
+v.entities("PERSON")                 # plain dicts, evidence included
+v.relations("founded by")            # each edge carries its sentence
+v.query("?- empire_builder(P, B)")   # Datalog over your own rules
+v.to_networkx()                      # hand the graph to any tool
+
+v.plot_graph()                       # needs: pip install graphier[viz]
+v.plot_timeline()
+```
+
+![plot_graph output](docs/plot-graph.png)
+
+![plot_timeline output](docs/plot-timeline.png)
+
 ## Ask your AI about your notes' knowledge
 
 Graphier ships an [MCP](https://modelcontextprotocol.io/) server, so

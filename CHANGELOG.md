@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Library API: `import graphier; v = graphier.open("~/notes")` — entities,
+  relations, Datalog queries, conflicts, timeline, `to_networkx()`, and
+  matplotlib plotting (`plot_graph()`, `plot_timeline()`) via the
+  `graphier[viz]` extra. Same determinism, same sentence-level evidence.
+
 - Lean PyPI install: `pip install graphier` no longer drags in
   multi-gigabyte ML dependencies; `graphier setup` fetches the extraction
   engine with `--no-deps`, and a friendly message explains the one
