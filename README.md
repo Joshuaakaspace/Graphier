@@ -181,6 +181,13 @@ self-programmable vault — is Graphier.
 
 ## Run it
 
+**pip** (once v0.1.0 is on PyPI):
+
+```bash
+pip install graphier && graphier setup   # setup fetches the extraction engine — no multi-GB ML downloads
+GRAPHIER_VAULT=~/notes graphier --demo
+```
+
 **Docker (one command, demo content included):**
 
 ```bash

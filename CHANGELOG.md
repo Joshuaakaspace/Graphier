@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Lean PyPI install: `pip install graphier` no longer drags in
+  multi-gigabyte ML dependencies; `graphier setup` fetches the extraction
+  engine with `--no-deps`, and a friendly message explains the one
+  command if it's missing. Release workflow gains PyPI trusted
+  publishing (no token needed).
+
 - **MCP server** (`graphier-mcp`): the vault's knowledge graph queryable
   by Claude Code, Claude Desktop, Cursor, and any MCP client over stdio —
   nine tools (search, entity dossiers, relations, Datalog, conflicts,
