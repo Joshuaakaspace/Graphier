@@ -273,6 +273,19 @@ v.plot_timeline()
 
 ![plot_timeline output](docs/plot-timeline.png)
 
+Styles and effects are built in — presets, full custom styles, and
+focus/highlight effects:
+
+```python
+v.plot_graph(style="dark", focus="Acme Corp")     # neighborhood focus + glow
+v.plot_timeline(highlight="Ada Lovelace")          # one lifeline, spotlit
+
+my_style = graphier.PlotStyle(background="#101418", colors={"PERSON": "#ffb86b"})
+v.plot_graph(style=my_style)
+```
+
+![dark focus effect](docs/plot-graph-dark-focus.png)
+
 ## Ask your AI about your notes' knowledge
 
 Graphier ships an [MCP](https://modelcontextprotocol.io/) server, so

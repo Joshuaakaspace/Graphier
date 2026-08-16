@@ -60,3 +60,33 @@ def test_plot_without_matplotlib_message(session, monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(ImportError, match=r"graphier\[viz\]"):
         session.plot_graph()
+
+
+def test_style_presets_and_custom(session):
+    mpl = pytest.importorskip("matplotlib")
+    mpl.use("Agg")
+
+    ax = session.plot_graph(style="dark")
+    assert ax.figure.get_facecolor()[:3] != (1.0, 1.0, 1.0)  # not white
+
+    custom = graphier.PlotStyle(background="#101418", colors={"PERSON": "#ffb86b"})
+    ax2 = session.plot_timeline(style=custom)
+    assert ax2.figure.get_facecolor()[0] < 0.2  # dark custom background
+
+    with pytest.raises(ValueError, match="unknown style"):
+        session.plot_graph(style="vaporwave")
+
+
+def test_focus_and_highlight_effects(session):
+    mpl = pytest.importorskip("matplotlib")
+    mpl.use("Agg")
+
+    ax = session.plot_graph(focus="Acme Corp")
+    assert "Acme Corp" in ax.get_title(loc="left")
+
+    with pytest.raises(ValueError, match="focus entity"):
+        session.plot_graph(focus="Nonexistent Corp")
+
+    ax2 = session.plot_timeline(highlight="Ada Lovelace")
+    bold = [t for t in ax2.get_yticklabels() if t.get_fontweight() == "bold"]
+    assert len(bold) == 1 and "Ada Lovelace" in bold[0].get_text()

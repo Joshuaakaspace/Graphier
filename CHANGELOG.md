@@ -6,6 +6,9 @@
   relations, Datalog queries, conflicts, timeline, `to_networkx()`, and
   matplotlib plotting (`plot_graph()`, `plot_timeline()`) via the
   `graphier[viz]` extra. Same determinism, same sentence-level evidence.
+  Plots take styles and effects: "paper"/"dark" presets or a custom
+  `PlotStyle`, `focus=` neighborhood spotlight with glow on the graph,
+  `highlight=` lifeline spotlight on the timeline.
 
 - Lean PyPI install: `pip install graphier` no longer drags in
   multi-gigabyte ML dependencies; `graphier setup` fetches the extraction
