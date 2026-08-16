@@ -18,7 +18,7 @@ jobs:
         run: |
           pip install --no-deps semantica
           pip install numpy pandas scipy networkx pypdf python-multipart \
-            fastapi "uvicorn[standard]" pytest httpx
+            fastapi "uvicorn[standard]" pytest httpx matplotlib
       - name: Configure git for snapshot tests
         run: |
           git config --global user.email ci@graphier.local
