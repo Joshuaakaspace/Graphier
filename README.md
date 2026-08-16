@@ -151,6 +151,34 @@ two facts stated in your own notes, provenance intact either way.
 
 ![Timeline](docs/timeline.png)
 
+## Where Graphier sits
+
+Graphier gets compared to two very different things: Obsidian (the
+workspace it feels like) and Semantica (the engine room it borrows
+from). All three occupy different layers:
+
+| | [Obsidian](https://obsidian.md) | [Semantica](https://github.com/semantica-agi/semantica) | **Graphier** |
+|---|---|---|---|
+| **What it is** | Note-taking app for humans | Python framework for AI-agent context | Knowledge workspace for humans, built on a real graph |
+| **Who uses it** | A person taking notes | Developers building agent systems | A person taking notes (and their AI, via MCP) |
+| **How the graph is made** | You draw `[[links]]` by hand | Your code pipes data through its pipeline | Extracted automatically from what you write |
+| **Graph semantics** | Untyped links between notes | Typed KG (RDF/LPG), ontology-governed | Typed entities + relations, user-definable in Markdown |
+| **Reasoning** | — | Forward chaining, Rete, Datalog, SPARQL | Datalog inference; your notes carry the rules |
+| **Contradiction handling** | Notes silently disagree | Conflict detection framework | Conflicts flagged with both sources quoted |
+| **"Why is this true?"** | — | W3C PROV-O provenance records | Every claim quotes its exact source sentence |
+| **Time** | File history via plugins | Temporal KG module | Git snapshots + graph replay + lifeline chronology |
+| **Sources** | Markdown (+ plugins) | Anything you pipe in (incl. Databricks/Snowflake) | Markdown, PDF, DOCX, HTML, TXT — one pipeline |
+| **Queries** | Search, Dataview plugin | SPARQL/Cypher/Datalog APIs | ```` ```query ```` blocks in notes + Datalog + MCP |
+| **AI involvement** | Optional plugins | Serves context *to* agents | None required; MCP server lets AI query the graph |
+| **Runs as** | Desktop/mobile app | `pip install` library / infra | Self-hosted web app (Docker/pip) |
+| **Best at** | Writing, ecosystem, polish | Enterprise agent infrastructure | Notes that become queryable, provable knowledge |
+
+The relationship, in one line each: Obsidian is where Graphier gets its
+*philosophy* (local-first, your files, plain Markdown); Semantica is where
+it gets three *engine parts* (pattern extraction, the Datalog reasoner,
+PageRank); the product in between — the self-building, self-explaining,
+self-programmable vault — is Graphier.
+
 ## Run it
 
 **Docker (one command, demo content included):**
