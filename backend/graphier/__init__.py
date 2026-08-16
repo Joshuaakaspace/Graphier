@@ -9,4 +9,4 @@ Library use:
 
 __version__ = "0.1.0"
 
-from .api import VaultSession, open  # noqa: F401,A004
+from .api import PlotStyle, VaultSession, open  # noqa: F401,A004

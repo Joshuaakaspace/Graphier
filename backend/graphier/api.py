@@ -48,6 +48,78 @@ def label_color(label: str) -> str:
     return _CUSTOM_PALETTE[sum(ord(c) for c in label) % len(_CUSTOM_PALETTE)]
 
 
+DARK_LABEL_COLORS = {
+    "PERSON": "#e08a51",
+    "ORG": "#a37fe0",
+    "GPE": "#6cbf71",
+    "DATE": "#64a3e8",
+    "CONCEPT": "#b8a02e",
+    "NOTE": "#5fb3a3",
+}
+
+
+def _mix(c1: str, c2: str, t: float) -> str:
+    """Blend two hex colors: t=0 → c1, t=1 → c2."""
+    a = [int(c1[i : i + 2], 16) for i in (1, 3, 5)]
+    b = [int(c2[i : i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(a, b))
+
+
+from dataclasses import dataclass, field  # noqa: E402
+
+
+@dataclass
+class PlotStyle:
+    """Visual style for the library plots.
+
+    Use a preset — `PlotStyle.paper()` (default) or `PlotStyle.dark()` —
+    or construct your own; `colors` overrides individual entity-type hues
+    on top of the preset's palette.
+
+        style = graphier.PlotStyle.dark()
+        style = graphier.PlotStyle(background="#101418", ink="#eaeaea",
+                                   colors={"PERSON": "#ffb86b"})
+    """
+
+    background: str = "#fbfaf8"
+    ink: str = "#232725"
+    ink_soft: str = "#6b716e"
+    line: str = "#c9c5bd"
+    grid: str = "#e7e3db"
+    node_ring: str = "#ffffff"
+    colors: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def paper(cls) -> "PlotStyle":
+        return cls()
+
+    @classmethod
+    def dark(cls) -> "PlotStyle":
+        return cls(
+            background="#191c1b", ink="#e4e6e4", ink_soft="#969e9a",
+            line="#3a403d", grid="#2a2f2d", node_ring="#191c1b",
+            colors=dict(DARK_LABEL_COLORS),
+        )
+
+    def color_of(self, label: str) -> str:
+        if label in self.colors:
+            return self.colors[label]
+        return label_color(label)
+
+    def faded(self, color: str, amount: float = 0.82) -> str:
+        return _mix(color, self.background, amount)
+
+
+def _resolve_style(style) -> PlotStyle:
+    if style is None or style == "paper":
+        return PlotStyle.paper()
+    if style == "dark":
+        return PlotStyle.dark()
+    if isinstance(style, PlotStyle):
+        return style
+    raise ValueError(f"unknown style {style!r} — use 'paper', 'dark', or a PlotStyle")
+
+
 class VaultSession:
     """A read view over one vault. Cheap to keep around: extraction is
     cached by content hash, so repeated calls only re-read changed notes."""
@@ -150,8 +222,15 @@ class VaultSession:
         seed: int = 7,
         exclude_labels: tuple[str, ...] = ("UNKNOWN", "DATE"),
         include_related: bool = False,
+        style=None,
+        focus: str | None = None,
     ):
         """Draw the knowledge graph. Returns the matplotlib Axes.
+
+        style: "paper" (default), "dark", or a graphier.PlotStyle.
+        focus: an entity name — that node and its neighborhood stay vivid
+        (with a soft glow on the focus node) while the rest fades, like
+        the app's hover effect.
 
         Defaults are opinionated for legibility: UNKNOWN and DATE nodes and
         generic co-occurrence ("related_to") edges are excluded from the
@@ -162,36 +241,65 @@ class VaultSession:
         import matplotlib.patheffects as pe
         import networkx as nx
 
+        st = _resolve_style(style)
         g = self.to_networkx(exclude_labels=exclude_labels)
         if not include_related:
             g.remove_edges_from(
                 [(u, v) for u, v, d in g.edges(data=True) if d["predicate"] == "related_to"]
             )
 
+        vivid: set[str] | None = None
+        if focus is not None:
+            wanted = focus.strip().lower()
+            node = next((n for n in g if n.strip().lower() == wanted), None)
+            if node is None:
+                raise ValueError(f"focus entity not in graph: {focus!r}")
+            vivid = {node} | set(g.predecessors(node)) | set(g.successors(node))
+
         if ax is None:
             _, ax = plt.subplots(figsize=(11, 8))
         fig = ax.figure
-        fig.set_facecolor("#fbfaf8")
-        ax.set_facecolor("#fbfaf8")
+        fig.set_facecolor(st.background)
+        ax.set_facecolor(st.background)
 
         try:
             pos = nx.kamada_kawai_layout(g.to_undirected())
         except Exception:  # disconnected corner cases fall back to spring
             pos = nx.spring_layout(g, seed=seed, k=3.0 / max(1, len(g)) ** 0.5, iterations=200)
 
-        ink, ink_soft, line = "#232725", "#6b716e", "#c9c5bd"
-        halo = [pe.withStroke(linewidth=3, foreground="#fbfaf8")]
+        halo = [pe.withStroke(linewidth=3, foreground=st.background)]
 
+        def is_vivid(n: str) -> bool:
+            return vivid is None or n in vivid
+
+        edge_cols = [
+            st.line if (is_vivid(u) and is_vivid(v)) else st.faded(st.line)
+            for u, v in g.edges()
+        ]
         nx.draw_networkx_edges(
-            g, pos, ax=ax, edge_color=line, width=1.3, alpha=0.9,
+            g, pos, ax=ax, edge_color=edge_cols, width=1.3, alpha=0.95,
             arrows=True, arrowsize=13, arrowstyle="-|>",
             connectionstyle="arc3,rad=0.08", node_size=520,
         )
-        colors = [label_color(g.nodes[n]["label"]) for n in g]
-        sizes = [260 + 90 * g.degree(n) for n in g]
+
+        nodes = list(g)
+        colors = [
+            st.color_of(g.nodes[n]["label"]) if is_vivid(n)
+            else st.faded(st.color_of(g.nodes[n]["label"]))
+            for n in nodes
+        ]
+        sizes = [260 + 90 * g.degree(n) for n in nodes]
+        if vivid is not None:
+            # a soft glow behind the focus node
+            fnode = next(n for n in vivid if n.strip().lower() == focus.strip().lower())
+            fi = nodes.index(fnode)
+            ax.scatter(*pos[fnode], s=sizes[fi] * 3.2, color=colors[fi],
+                       alpha=0.18, zorder=1, linewidths=0)
+            ax.scatter(*pos[fnode], s=sizes[fi] * 1.9, color=colors[fi],
+                       alpha=0.25, zorder=1, linewidths=0)
         nx.draw_networkx_nodes(
             g, pos, ax=ax, node_color=colors, node_size=sizes,
-            edgecolors="white", linewidths=2.0,
+            edgecolors=st.node_ring, linewidths=2.0,
         )
 
         # Labels sit below their node with a halo, never on top of it, and
@@ -203,13 +311,14 @@ class VaultSession:
         span_y = (max(ys) - min(ys)) or 1.0
         for node in sorted(g, key=lambda n: -g.degree(n)):
             x, y = pos[node]
-            ly = y - 0.045 * span_y - (sizes[list(g).index(node)] ** 0.5) * 0.0016 * span_y
+            ly = y - 0.045 * span_y - (sizes[nodes.index(node)] ** 0.5) * 0.0016 * span_y
             for px, py in placed:
                 if abs(x - px) < 0.14 * span_x and abs(ly - py) < 0.045 * span_y:
                     ly = py - 0.05 * span_y
             placed.append((x, ly))
             ax.text(
-                x, ly, node, ha="center", va="top", fontsize=9.5, color=ink,
+                x, ly, node, ha="center", va="top", fontsize=9.5,
+                color=st.ink if is_vivid(node) else st.faded(st.ink, 0.6),
                 path_effects=halo, zorder=6,
             )
 
@@ -217,39 +326,57 @@ class VaultSession:
             labels = {
                 (u, v): d["predicate"].replace("_", " ")
                 for u, v, d in g.edges(data=True)
-                if d["predicate"] != "related_to"
+                if d["predicate"] != "related_to" and is_vivid(u) and is_vivid(v)
             }
             texts = nx.draw_networkx_edge_labels(
                 g, pos, ax=ax, edge_labels=labels, font_size=7.5,
-                font_color=ink_soft, rotate=False,
-                bbox={"boxstyle": "round,pad=0.15", "fc": "#fbfaf8", "ec": "none", "alpha": 0.9},
+                font_color=st.ink_soft, rotate=False,
+                bbox={"boxstyle": "round,pad=0.15", "fc": st.background, "ec": "none", "alpha": 0.9},
             )
             for t in texts.values():
                 t.set_fontstyle("italic")
 
         present = sorted({g.nodes[n]["label"] for n in g})
         handles = [
-            plt.Line2D([], [], marker="o", linestyle="", color=label_color(l),
-                       markeredgecolor="white", markeredgewidth=1.2,
+            plt.Line2D([], [], marker="o", linestyle="", color=st.color_of(l),
+                       markeredgecolor=st.node_ring, markeredgewidth=1.2,
                        label=l.title(), markersize=9)
             for l in present
         ]
         ax.legend(handles=handles, loc="upper left", frameon=False, fontsize=8.5,
-                  labelcolor=ink_soft, handletextpad=0.4, borderaxespad=0.2)
+                  labelcolor=st.ink_soft, handletextpad=0.4, borderaxespad=0.2)
         ax.set_axis_off()
         ax.margins(0.10)
-        ax.set_title("Knowledge graph", fontsize=13, color=ink, loc="left",
+        title = "Knowledge graph" if focus is None else f"Knowledge graph · {focus}"
+        ax.set_title(title, fontsize=13, color=st.ink, loc="left",
                      fontweight="bold", pad=12)
         return ax
 
-    def plot_timeline(self, ax=None, max_rows: int = 8):
-        """Draw entity lifelines over time. Returns the matplotlib Axes."""
+    def plot_timeline(
+        self,
+        ax=None,
+        max_rows: int = 8,
+        style=None,
+        highlight: str | list[str] | None = None,
+    ):
+        """Draw entity lifelines over time. Returns the matplotlib Axes.
+
+        style: "paper" (default), "dark", or a graphier.PlotStyle.
+        highlight: entity name(s) — those lifelines stay vivid and grow
+        slightly; the rest fade back.
+        """
         plt = self._plt()
         import matplotlib.patheffects as pe
 
+        st = _resolve_style(style)
         events = self.timeline()
         if not events:
             raise ValueError("no dated events in this vault yet")
+
+        wanted = None
+        if highlight is not None:
+            names = [highlight] if isinstance(highlight, str) else list(highlight)
+            wanted = {n.strip().lower() for n in names}
 
         def t_of(e):
             y, m, d = e["sort_key"]
@@ -262,42 +389,50 @@ class VaultSession:
         top = sorted(rows.items(), key=lambda kv: -len(kv[1]))[:max_rows]
         top.sort(key=lambda kv: kv[1][0])
 
-        ink, ink_soft, grid = "#232725", "#6b716e", "#e7e3db"
         if ax is None:
             _, ax = plt.subplots(figsize=(10, 0.62 * len(top) + 1.4))
         fig = ax.figure
-        fig.set_facecolor("#fbfaf8")
-        ax.set_facecolor("#fbfaf8")
+        fig.set_facecolor(st.background)
+        ax.set_facecolor(st.background)
 
         all_t = [t for _, ts in top for t in ts]
         pad = max(1.5, (max(all_t) - min(all_t)) * 0.04)
         x_hi = max(all_t) + pad
 
-        halo = [pe.withStroke(linewidth=3, foreground="#fbfaf8")]
+        halo = [pe.withStroke(linewidth=3, foreground=st.background)]
         for i, ((text, label), ts) in enumerate(top):
-            color = label_color(label)
+            hot = wanted is None or text.strip().lower() in wanted
+            color = st.color_of(label) if hot else st.faded(st.color_of(label), 0.75)
+            size, lw = (72, 3.2) if (wanted is not None and hot) else (58, 2.5)
             if len(ts) > 1:
-                ax.hlines(i, min(ts), max(ts), color=color, alpha=0.30,
-                          linewidth=2.5, capstyle="round")
-            ax.scatter(ts, [i] * len(ts), color=color, s=58, zorder=3,
-                       edgecolors="#fbfaf8", linewidths=1.4)
+                ax.hlines(i, min(ts), max(ts), color=color,
+                          alpha=0.45 if (wanted is not None and hot) else 0.30,
+                          linewidth=lw, capstyle="round")
+            ax.scatter(ts, [i] * len(ts), color=color, s=size, zorder=3,
+                       edgecolors=st.background, linewidths=1.4)
             years = sorted({int(t) for t in ts})
             span = str(years[0]) if len(years) == 1 else f"{years[0]}–{years[-1]}"
             ax.annotate(span, (max(ts), i), xytext=(9, 0),
                         textcoords="offset points", va="center", fontsize=7.5,
-                        color=ink_soft, path_effects=halo)
+                        color=st.ink_soft if hot else st.faded(st.ink_soft, 0.5),
+                        path_effects=halo)
 
         ax.set_yticks(range(len(top)))
-        ax.set_yticklabels([text for (text, _), _ in top], fontsize=9.5, color=ink)
+        labels_ = ax.set_yticklabels([text for (text, _), _ in top], fontsize=9.5)
+        for lab, ((text, _), _) in zip(labels_, top):
+            hot = wanted is None or text.strip().lower() in wanted
+            lab.set_color(st.ink if hot else st.faded(st.ink, 0.55))
+            if wanted is not None and hot:
+                lab.set_fontweight("bold")
         ax.invert_yaxis()
         ax.set_xlim(min(all_t) - pad, x_hi + pad)
-        ax.grid(axis="x", color=grid, linewidth=0.9)
+        ax.grid(axis="x", color=st.grid, linewidth=0.9)
         ax.set_axisbelow(True)
-        ax.tick_params(axis="x", colors=ink_soft, labelsize=8.5, length=0)
+        ax.tick_params(axis="x", colors=st.ink_soft, labelsize=8.5, length=0)
         ax.tick_params(axis="y", length=0)
         for spine in ax.spines.values():
             spine.set_visible(False)
-        ax.set_title("Entity lifelines", fontsize=13, color=ink, loc="left",
+        ax.set_title("Entity lifelines", fontsize=13, color=st.ink, loc="left",
                      fontweight="bold", pad=12)
         return ax
 
