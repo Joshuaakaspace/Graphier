@@ -42,7 +42,7 @@ jobs:
 
   # Publishes to PyPI via trusted publishing (no token/secret needed).
   # One-time setup on pypi.org: Account → Publishing → add a "pending
-  # publisher" for Joshuaakaspace/Graphier, workflow release.yml,
+  # publisher" for ioteverythin/Graphier, workflow release.yml,
   # environment pypi. Then set the repo variable PYPI_PUBLISH to "true".
   publish-pypi:
     needs: build
