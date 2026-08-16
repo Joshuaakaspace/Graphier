@@ -13,12 +13,19 @@ classifiers = [
     "Topic :: Office/Business :: Groupware",
     "Topic :: Text Processing :: Markup :: Markdown",
 ]
+# Lean by design: the engine package (semantica) installs via `graphier
+# setup` with --no-deps, because its own dependency list pulls torch/
+# transformers/spacy (multi-GB) that the deterministic path never uses.
+# The scientific deps Graphier's path DOES use are declared here.
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.29",
-    "semantica>=0.6.0",
     "pypdf>=4.0",
     "python-multipart>=0.0.9",
+    "numpy",
+    "pandas",
+    "scipy",
+    "networkx",
 ]
 
 [project.urls]
@@ -28,10 +35,12 @@ Changelog = "https://github.com/Joshuaakaspace/Graphier/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]
+# Full Semantica including its ML extractors (large download):
+ml = ["semantica>=0.6.0"]
 
 [project.scripts]
-graphier = "graphier.main:main"
-graphier-mcp = "graphier.mcp:main"
+graphier = "graphier.cli:main"
+graphier-mcp = "graphier.cli:mcp_main"
 
 [build-system]
 requires = ["setuptools>=68"]

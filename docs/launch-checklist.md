@@ -12,6 +12,12 @@ CONTRIBUTING, ROADMAP, templates). What remains needs the repo owner.
 - [ ] Social preview image: upload `docs/graph-view.png`
 - [ ] Enable **Discussions**
 - [ ] Tag `v0.1.0` (the release workflow builds and attaches the wheel)
+- [ ] PyPI (optional but recommended): create a pypi.org account →
+      Publishing → add a *pending publisher* for `Joshuaakaspace/Graphier`,
+      workflow `release.yml`, environment `pypi` → set the GitHub repo
+      **variable** `PYPI_PUBLISH=true` → re-tag or re-run the release
+      workflow. No token/secret needed (trusted publishing). After that,
+      `pip install graphier` works for everyone.
 
 ## Seed issues (copy, adjust, post — label the first four `good first issue`)
 
