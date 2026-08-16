@@ -29,9 +29,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Joshuaakaspace/Graphier"
-Repository = "https://github.com/Joshuaakaspace/Graphier"
-Changelog = "https://github.com/Joshuaakaspace/Graphier/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/ioteverythin/Graphier"
+Repository = "https://github.com/ioteverythin/Graphier"
+Changelog = "https://github.com/ioteverythin/Graphier/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "httpx>=0.27"]

@@ -3,7 +3,7 @@
 **An Obsidian-like knowledge workspace where the graph builds itself — no
 LLM, no cloud, and every claim can quote the sentence it came from.**
 
-[![CI](https://github.com/Joshuaakaspace/Graphier/actions/workflows/ci.yml/badge.svg)](https://github.com/Joshuaakaspace/Graphier/actions/workflows/ci.yml)
+[![CI](https://github.com/ioteverythin/Graphier/actions/workflows/ci.yml/badge.svg)](https://github.com/ioteverythin/Graphier/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-3776AB.svg)](https://www.python.org/)
 
