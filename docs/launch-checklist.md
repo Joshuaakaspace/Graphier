@@ -5,10 +5,22 @@ CONTRIBUTING, ROADMAP, templates). What remains needs the repo owner.
 
 ## Repo settings (5 minutes)
 
-- [ ] Topics: `knowledge-graph`, `pkm`, `note-taking`, `local-first`,
-      `obsidian-alternative`, `datalog`, `knowledge-management`
-- [ ] Description: *"Obsidian-like notes where the knowledge graph builds
-      itself — no LLM, no cloud, every claim quotes its source sentence"*
+On https://github.com/ioteverythin/Graphier, click the **gear** next to
+"About" (top of the right sidebar) and paste — this cannot be set from a
+PR, only the owner's UI/API:
+
+- [ ] Description:
+
+      ```
+      Obsidian-like notes where the knowledge graph builds itself — no LLM, no cloud, every claim quotes its source sentence.
+      ```
+
+- [ ] Topics (comma/Enter separated):
+
+      ```
+      knowledge-graph, note-taking, pkm, obsidian, markdown, local-first, datalog, entity-extraction, mcp-server, self-hosted, fastapi, react, provenance, python
+      ```
+
 - [ ] Social preview image: upload `docs/graph-view.png`
 - [ ] Enable **Discussions**
 - [ ] Tag `v0.1.0` (the release workflow builds and attaches the wheel)
@@ -44,8 +56,9 @@ CONTRIBUTING, ROADMAP, templates). What remains needs the repo owner.
    diff nodes/edges and render what appeared/vanished/changed.
 7. **Obsidian vault import** — handle frontmatter and `#tags` when
    pointing GRAPHIER_VAULT at an existing Obsidian folder.
-8. **MCP server** — expose search/entity/relations/Datalog/provenance to
-   MCP clients (roadmap headliner; design discussion first).
+8. **Fuzzy / typo-tolerant search** — BM25 is exact-match; a cheap
+   edit-distance fallback for zero-hit queries would soften typos
+   (`search.py`, see docs/how-search-works.md for the constraints).
 
 ## Launch posts
 
