@@ -126,7 +126,7 @@ class GraphierTools:
 TOOL_DEFS = [
     {
         "name": "search_vault",
-        "description": "Hybrid search over the vault: TF-IDF ranking boosted by the "
+        "description": "Hybrid search over the vault: BM25 ranking boosted by the "
         "knowledge graph. Returns ranked note hits with snippets, plus entities "
         "matching the query.",
         "inputSchema": {

@@ -44,7 +44,7 @@ backend/graphier/
   extraction.py   entity + relation extraction over a masked shadow of each note
   graph.py        vault-wide graph: nodes, edges, sentence evidence, domain parsing
   enrichment.py   Datalog inference, conflicts, suggestions, PageRank
-  search.py       TF-IDF + graph-boosted hybrid search
+  search.py       BM25 + graph-boosted hybrid search
   history.py      git-backed snapshots and graph-at-commit replay
   timeline.py     dated events across all sources
   demo.py         first-run demo corpus

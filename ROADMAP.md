@@ -13,7 +13,7 @@ for the bigger ones so we can agree on shape.
       inferred-edge overlay
 - [x] User-programmable rules (```datalog blocks)
 - [x] Sentence-level provenance + entity pages + one-click linking
-- [x] Hybrid search (TF-IDF + graph boost)
+- [x] Hybrid search (BM25 + graph boost)
 - [x] Time travel (git snapshots, graph-at-commit replay)
 - [x] Domains: vault-defined entity types + typed relation templates
 - [x] Live query notes (```query blocks, Datalog queries)

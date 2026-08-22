@@ -1,9 +1,15 @@
-"""Hybrid vault search: lexical TF-IDF + knowledge-graph awareness.
+"""Hybrid vault search: lexical BM25 + knowledge-graph awareness.
 
-Pure numpy TF-IDF with cosine ranking, then graph-boosted: a note that
-mentions an entity whose name matches the query outranks a note that
-merely shares vocabulary. Matching entities are returned alongside note
-hits so the UI can offer their entity pages directly.
+Pure-Python Okapi BM25 (term-frequency saturation + document-length
+normalization), then graph-boosted: a note that mentions an entity whose
+name matches the query outranks a note that merely shares vocabulary.
+Matching entities are returned alongside note hits so the UI can offer
+their entity pages directly.
+
+BM25 raw scores are unbounded, so each score is divided by the query's
+best achievable score — every term saturated to its ceiling — mapping it
+into [0, 1]. That keeps the flat entity boost and the relevance floor
+meaningful regardless of query length.
 """
 
 from __future__ import annotations
@@ -16,6 +22,11 @@ from typing import Any
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 _ENTITY_BOOST = 0.35
+
+# Okapi BM25 constants: _K1 controls how quickly repeated terms stop
+# adding score, _B how strongly long documents are penalized.
+_K1 = 1.5
+_B = 0.75
 
 
 def _tokens(text: str) -> list[str]:
@@ -50,30 +61,31 @@ def search(
             for note_id in node["notes"]:
                 boosted_notes[note_id] = boosted_notes.get(note_id, 0.0) + _ENTITY_BOOST
 
-    # ---- TF-IDF cosine over note bodies ----
+    # ---- BM25 over note bodies ----
     doc_tokens = {note_id: _tokens(content) for note_id, content in notes.items()}
     doc_freq: Counter = Counter()
     for toks in doc_tokens.values():
         doc_freq.update(set(toks))
     n_docs = len(notes)
+    avg_len = sum(len(toks) for toks in doc_tokens.values()) / n_docs or 1.0
 
     def idf(term: str) -> float:
-        return math.log((n_docs + 1) / (doc_freq[term] + 1)) + 1
+        df = doc_freq[term]
+        return math.log(1 + (n_docs - df + 0.5) / (df + 0.5))
 
-    def vectorize(toks: list[str]) -> dict[str, float]:
-        counts = Counter(toks)
-        total = len(toks) or 1
-        return {t: (c / total) * idf(t) for t, c in counts.items()}
-
-    query_vec = vectorize(query_tokens)
-    query_norm = math.sqrt(sum(w * w for w in query_vec.values())) or 1.0
+    query_terms = set(query_tokens)
+    best_possible = sum(idf(t) * (_K1 + 1) for t in query_terms) or 1.0
 
     scored = []
     for note_id, toks in doc_tokens.items():
-        doc_vec = vectorize(toks)
-        dot = sum(query_vec[t] * doc_vec.get(t, 0.0) for t in query_vec)
-        doc_norm = math.sqrt(sum(w * w for w in doc_vec.values())) or 1.0
-        score = dot / (query_norm * doc_norm) + boosted_notes.get(note_id, 0.0)
+        counts = Counter(toks)
+        length_norm = _K1 * (1 - _B + _B * len(toks) / avg_len)
+        raw = sum(
+            idf(t) * counts[t] * (_K1 + 1) / (counts[t] + length_norm)
+            for t in query_terms
+            if counts[t]
+        )
+        score = raw / best_possible + boosted_notes.get(note_id, 0.0)
         if score > 0.01:
             scored.append((score, note_id))
     scored.sort(reverse=True)
