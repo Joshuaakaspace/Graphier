@@ -18,9 +18,11 @@ cloud: everything is derived from your files, every claim can quote the
 sentence it came from, and the whole graph rebuilds from the vault at any
 time. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
 
-**Status: Phase 1 + vault intelligence** — vault CRUD, live entity extraction
-with in-editor underlines, entity/relations panel, vault-wide graph
-aggregation, and a deterministic enrichment layer:
+**What's inside** — a Markdown vault with live entity extraction and
+in-editor underlines, document ingestion (PDF/DOCX/HTML/TXT), hybrid
+search, git-backed time travel, a cross-source chronology, an MCP server,
+a Python library with publication-quality plots, and a deterministic
+enrichment layer:
 
 - **Inferred connections** — a Datalog reasoner forward-chains rules over
   extracted facts: multi-hop chains ("Widget Inc ↔ Ada Lovelace, because

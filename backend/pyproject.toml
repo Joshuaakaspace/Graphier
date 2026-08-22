@@ -1,10 +1,10 @@
 [project]
 name = "graphier"
 version = "0.1.0"
-description = "An Obsidian-like knowledge workspace where the graph builds itself — no LLM, no cloud, every claim can quote its source sentence"
+description = "Obsidian-like notes where the knowledge graph builds itself — no LLM, no cloud, every claim quotes its source sentence"
 license = { text = "MIT" }
 requires-python = ">=3.10"
-keywords = ["knowledge-graph", "pkm", "note-taking", "local-first", "datalog", "obsidian"]
+keywords = ["knowledge-graph", "pkm", "note-taking", "local-first", "datalog", "obsidian", "mcp-server", "entity-extraction", "provenance"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: End Users/Desktop",
