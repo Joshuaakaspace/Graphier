@@ -44,10 +44,11 @@ aggregation, and a deterministic enrichment layer:
   it, plus the conflicts and inferences it participates in.
 - **One-click linking** — accept a link suggestion and the `[[wiki-link]]` is
   written into your Markdown for you.
-- **Hybrid search** — TF-IDF ranking over note bodies, graph-boosted: a note
+- **Hybrid search** — BM25 ranking over note bodies, graph-boosted: a note
   that *mentions the entity you searched for* outranks one that merely shares
   vocabulary, and matching entities surface as chips that open their entity
-  pages.
+  pages. Deterministic and fully explained in
+  [docs/how-search-works.md](docs/how-search-works.md).
 - **Time travel** — the vault is a git repo. Take a snapshot anytime; the
   graph view's timeline selector replays the knowledge graph exactly as it
   was at any snapshot — the past still knows what the present forgot.

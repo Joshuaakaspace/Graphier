@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Search upgraded from TF-IDF cosine to **Okapi BM25** (term-frequency
+  saturation + document-length normalization, normalized to [0, 1] so the
+  graph-entity boost keeps its weight). A note spamming one query term no
+  longer outranks a note covering all of them, and short focused notes
+  beat long ones with the same match. New docs page:
+  [how search works](docs/how-search-works.md).
+
 - Library API: `import graphier; v = graphier.open("~/notes")` — entities,
   relations, Datalog queries, conflicts, timeline, `to_networkx()`, and
   matplotlib plotting (`plot_graph()`, `plot_timeline()`) via the

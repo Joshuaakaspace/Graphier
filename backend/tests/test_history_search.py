@@ -33,6 +33,34 @@ def test_search_entity_match_boosts_and_returns_entity(client):
     )
 
 
+def test_search_term_coverage_beats_repetition(tmp_path):
+    c = TestClient(create_app(vault_dir=str(tmp_path)))
+    for title, body in [
+        ("Spam", "# Spam\n\n" + "compiler " * 40),
+        ("Plan", "# Plan\n\nThe compiler roadmap was finalized this week."),
+    ]:
+        note_id = c.post("/api/notes", json={"title": title}).json()["id"]
+        c.put(f"/api/notes/{note_id}", json={"content": body})
+    result = c.get("/api/search", params={"q": "compiler roadmap"}).json()
+    assert [r["id"] for r in result["results"]][0] == "plan"
+
+
+def test_search_length_normalization_and_score_range(tmp_path):
+    c = TestClient(create_app(vault_dir=str(tmp_path)))
+    filler = " ".join(f"word{i}" for i in range(300))
+    for title, body in [
+        ("Short", "# Short\n\nThe roadmap."),
+        ("Long", f"# Long\n\nThe roadmap. {filler}"),
+    ]:
+        note_id = c.post("/api/notes", json={"title": title}).json()["id"]
+        c.put(f"/api/notes/{note_id}", json={"content": body})
+    result = c.get("/api/search", params={"q": "roadmap"}).json()
+    ids = [r["id"] for r in result["results"]]
+    assert ids[0] == "short"
+    # normalized BM25: lexical score is bounded by 1 (no entity boost here)
+    assert all(0 < r["score"] <= 1 for r in result["results"])
+
+
 def test_search_empty_query_and_no_hits(client):
     assert client.get("/api/search", params={"q": "   "}).json()["results"] == []
     assert client.get("/api/search", params={"q": "zzzqqqxxx"}).json()["results"] == []
